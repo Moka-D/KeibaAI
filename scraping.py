@@ -106,3 +106,31 @@ def scrape_race_info(race_id: str) -> tuple[pd.DataFrame, dict[str, str], pd.Dat
     payoff_table = pd.concat([dfs[1], dfs[2]], ignore_index=True)
 
     return result_df, info_dict, payoff_table
+
+
+def scrape_horse_peds(horse_id: str) -> pd.DataFrame:
+    """
+    馬の血統(2世代前まで)をスクレイピングで取得する関数
+
+    Parameters
+    ----------
+    horse_id : str
+        馬ID
+
+    Returns
+    -------
+    peds_df : pandas.DataFrame
+        馬の血統表 (2世代前まで)
+    """
+    url = 'https://db.netkeiba.com/horse/' + horse_id
+    df = pd.read_html(url)[2]
+
+    generations = {}
+    columns_num = len(df.columns)
+    for i in reversed(range(columns_num)):
+        generations[i] = df[i]
+        df.drop([i], axis=1, inplace=True)
+        df = df.drop_duplicates()
+
+    peds_df = pd.concat([generations[i] for i in range(columns_num)], ignore_index=True).rename(horse_id)
+    return peds_df
