@@ -1,57 +1,23 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import os
-import datetime
 import pandas as pd
 import time
-from tqdm.notebook import tqdm
 import requests
 import re
 from bs4 import BeautifulSoup
 
 
-MAX_PLACE_NUM = 11
-MAX_HOLD_NUM = 6
-MAX_DAY_NUM = 13
-MAX_RACE_NUM = 13
+class UnMatchExpectedData(Exception):
+    """
+    期待するデータが見つからなかったときの例外クラス
+    """
+    pass
 
 
-def create_race_id_list(start_year, last_year):
-    race_id_list = []
-    if start_year <= last_year and start_year >= 1975 and last_year <= datetime.date.today().year:
-        for year in range(start_year, last_year + 1):
-            for place in range(1, MAX_PLACE_NUM):
-                for hold in range(1,MAX_HOLD_NUM):
-                    for day in range(1, MAX_DAY_NUM):
-                        for race in range(1, MAX_RACE_NUM):
-                            race_id = "{:4d}{:0>2d}{:0>2d}{:0>2d}{:0>2d}".format(year, place, hold, day, race)
-                            race_id_list.append(race_id)
-    return race_id_list
-
-
-def regist_result(race_id_list, pre_race_results={}, pre_race_infos={}):
-    race_results = pre_race_results
-    race_infos = pre_race_infos
-    for race_id in tqdm(race_id_list):
-        time.sleep(1)
-        try:
-            title, info1, info2, df = scrape_race_info(race_id)
-            race_results[race_id] = df
-
-            info_dict={}
-            info_dict['title'] = title
-            info_dict
-        except IndexError:
-            continue
-        except:
-            print("Error!: Unexpected error occurred at race_id=%d" % race_id)
-            break
-    return race_results, race_infos
-
-
-def scrape_race_info(race_id):
+def scrape_race_info(race_id: str) -> tuple[pd.DataFrame, dict]:
     url = 'https://db.netkeiba.com/race/' + race_id
 
+    time.sleep(1)
     html = requests.get(url)
     html.encoding = 'EUC-JP'
     soup = BeautifulSoup(html.text, 'html.parser')
@@ -59,13 +25,34 @@ def scrape_race_info(race_id):
     data_intro = soup.find('div', attrs={'class': 'data_intro'})
 
     # race_info
-    title = data_intro.find_all('h1')[0].text
-    race_info = data_intro.find_all('p')
-    info1 = re.findall(r'\w+', race_info[0].text)
-    info2 = re.findall(r'\w+', race_info[1].text)
+    info_dict = {}
+    info_dict['title'] = data_intro.find_all('h1')[0].text
+    p_texts = data_intro.find_all('p')
+    text1 = p_texts[0].text
+    text2 = p_texts[1].text
 
-    # result df
-    df = pd.read_html(url)[0]
+    # race_type
+    if '障' in text1:
+        info_dict['race_type'] = '障害'
+    elif '芝' in text1:
+        info_dict['race_type'] = '芝'
+    elif 'ダ' in text1:
+        info_dict['race_type'] = 'ダート'
+    else:
+        raise UnMatchExpectedData("期待するrace_typeが見つかりませんでした。")
+
+    # date
+    info_dict['date'] = re.findall(r'\w+', text2)[0]
+
+    # others info
+    text_list = re.findall(r'\w+', text1)
+    for text in text_list:
+        if 'm' in text:
+            info_dict['course_dist'] = re.findall(r'\d+', text)[0]
+        if text in ['良', '稍重', '重', '不良']:
+            info_dict['ground_state'] = text
+        if text in ['曇', '晴', '雨', '小雨', '小雪', '雪']:
+            info_dict['weather'] = text
 
     # horse_id
     horse_id_list = []
@@ -81,7 +68,18 @@ def scrape_race_info(race_id):
         jockey_id = re.findall(r'\d+', a['href'])
         jockey_id_list.append(jockey_id[0])
 
-    df['horse_id'] = horse_id_list
-    df['jockey_id'] = jockey_id_list
+    # trainer_id
+    trainer_id_list = []
+    trainer_a_list = result_soup.find_all('a', attrs={'href': re.compile('^/trainer')})
+    for a in trainer_a_list:
+        trainer_id = re.findall(r'\d+', a['href'])
+        trainer_id_list.append(trainer_id[0])
 
-    return title, info1, info2, df
+    # result df
+    result_df = pd.read_html(url)[0]
+
+    result_df['horse_id'] = horse_id_list
+    result_df['jockey_id'] = jockey_id_list
+    result_df['trainer_id'] = trainer_id_list
+
+    return result_df, info_dict
