@@ -5,6 +5,7 @@ import time
 import requests
 import re
 from bs4 import BeautifulSoup
+from urllib.request import urlopen
 
 
 class UnMatchExpectedData(Exception):
@@ -14,8 +15,26 @@ class UnMatchExpectedData(Exception):
     pass
 
 
-def scrape_race_info(race_id: str) -> tuple[pd.DataFrame, dict]:
+def scrape_race_info(race_id: str) -> tuple[pd.DataFrame, dict[str, str], pd.DataFrame]:
+    """
+    レース結果のスクレイピングを行う関数
+
+    Parameters
+    ----------
+    race_id : str
+        レース結果
+
+    Returns
+    -------
+    result_df : pandas.DataFrame
+        レース結果
+    info_dict : dict[str, str]
+        レース情報
+    payoff_table : pandas.DataFrame
+        払い戻し表
+    """
     url = 'https://db.netkeiba.com/race/' + race_id
+    result_df = pd.read_html(url)[0]
 
     time.sleep(1)
     html = requests.get(url)
@@ -75,11 +94,15 @@ def scrape_race_info(race_id: str) -> tuple[pd.DataFrame, dict]:
         trainer_id = re.findall(r'\d+', a['href'])
         trainer_id_list.append(trainer_id[0])
 
-    # result df
-    result_df = pd.read_html(url)[0]
-
     result_df['horse_id'] = horse_id_list
     result_df['jockey_id'] = jockey_id_list
     result_df['trainer_id'] = trainer_id_list
 
-    return result_df, info_dict
+    # payoff
+    f = urlopen(url)
+    html_p = f.read()
+    html_p = html_p.replace(b'<br />', b'|')
+    dfs = pd.read_html(html_p)
+    payoff_table = pd.concat([dfs[1], dfs[2]], ignore_index=True)
+
+    return result_df, info_dict, payoff_table
