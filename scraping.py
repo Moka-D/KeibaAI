@@ -5,7 +5,11 @@ import time
 import requests
 import re
 from bs4 import BeautifulSoup
-from urllib.request import urlopen
+
+
+DATE_PATTERN = re.compile('\d{4}/\d{1,2}/\d{1,2}')
+GROUND_STATE_LIST = ['良', '稍', '重', '不']
+WEATHER_LIST = ['曇', '晴', '雨', '小雨', '小雪', '雪']
 
 
 def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.DataFrame]:
@@ -26,70 +30,69 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
     payoff_table : pandas.DataFrame
         払い戻し表
     """
-    url = 'https://db.netkeiba.com/race/' + race_id
-    result_df = pd.read_html(url)[0]
+    url = 'https://db.sp.netkeiba.com/race/' + race_id
+    df_list = pd.read_html(url)
+    result_df = df_list[0]
 
     time.sleep(1)
     html = requests.get(url)
     html.encoding = 'EUC-JP'
     soup = BeautifulSoup(html.text, 'html.parser')
-    result_soup = soup.find('table', attrs={'summary': 'レース結果'})
-    data_intro = soup.find('div', attrs={'class': 'data_intro'})
+    result_table = soup.find('table', attrs={'class': 'table_slide_body ResultsByRaceDetail'})
 
     # race_info
     info_dict = {}
-    info_dict['title'] = data_intro.find_all('h1')[0].text
-    p_texts = data_intro.find_all('p')
-    text1 = p_texts[0].text
-    text2 = p_texts[1].text
+    info_dict['title'] = soup.find('span', attrs={'class': 'RaceName_main'}).text
+    info_text = soup.find('div', attrs={'class': 'RaceData'}).text
 
     # race_type, turn
-    if '障' in text1:
+    if '障' in info_text:
         info_dict['race_type'] = '障害'
-    elif '芝' in text1:
+    elif '芝' in info_text:
         info_dict['race_type'] = '芝'
-    elif 'ダ' in text1:
+    elif 'ダ' in info_text:
         info_dict['race_type'] = 'ダート'
     else:
-        info_dict['race_type'] = 'その他'
+        info_dict['race_type'] = '他'
 
-    if '右' in text1:
+    if '右' in info_text:
         info_dict['turn'] = '右'
-    elif '左' in text1:
+    elif '左' in info_text:
         info_dict['turn'] = '左'
     else:
-        info_dict['turn'] = 'その他'
-
-    # date
-    info_dict['date'] = re.findall(r'\w+', text2)[0]
+        info_dict['turn'] = '他'
 
     # others info
-    text_list = re.findall(r'\w+', text1)
+    text_list = re.findall(r'\w+', info_text)
     for text in reversed(text_list):
         if 'm' in text:
             info_dict['course_dist'] = re.findall(r'\d+', text)[0]
-        if text in ['良', '稍重', '重', '不良']:
+        if text in GROUND_STATE_LIST:
             info_dict['ground_state'] = text
-        if text in ['曇', '晴', '雨', '小雨', '小雪', '雪']:
+        if text in WEATHER_LIST:
             info_dict['weather'] = text
+
+    # date
+    date_text = soup.find('span', attrs={'class': 'Race_Date'}).text
+    info_dict['date'] = re.search(DATE_PATTERN, date_text).group()
 
     # horse_id
     horse_id_list = []
-    horse_a_list = result_soup.find_all('a', attrs={'href': re.compile('^/horse')})
+    horse_a_list = result_table.find_all('a', attrs={'href': re.compile('/horse/\d+/')})
     for a in horse_a_list:
         horse_id = re.findall(r'\d+', a['href'])
         horse_id_list.append(horse_id[0])
 
     # jockey_id
     jockey_id_list = []
-    jockey_a_list = result_soup.find_all('a', attrs={'href': re.compile('^/jockey')})
+    jockey_a_list = result_table.find_all('a', attrs={'href': re.compile('/jockey/\d+/')})
     for a in jockey_a_list:
         jockey_id = re.findall(r'\d+', a['href'])
         jockey_id_list.append(jockey_id[0])
 
     # trainer_id
     trainer_id_list = []
-    trainer_a_list = result_soup.find_all('a', attrs={'href': re.compile('^/trainer')})
+    trainer_a_list = result_table.find_all('a', attrs={'href': re.compile('/trainer/\d+/')})
     for a in trainer_a_list:
         trainer_id = re.findall(r'\d+', a['href'])
         trainer_id_list.append(trainer_id[0])
@@ -99,11 +102,7 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
     result_df['trainer_id'] = trainer_id_list
 
     # payoff
-    f = urlopen(url)
-    html_p = f.read()
-    html_p = html_p.replace(b'<br />', b'|')
-    dfs = pd.read_html(html_p)
-    payoff_table = pd.concat([dfs[1], dfs[2]], ignore_index=True)
+    payoff_table = df_list[1]
 
     return info_dict, result_df, payoff_table
 
@@ -181,13 +180,9 @@ def scrape_race_card(race_id: str, date: str) -> pd.DataFrame:
     for text in info:
         if 'm' in text:
             df['course_dist'] = [int(re.findall(r'\d+', text)[0])] * len(df)
-        if text in ['良', '重']:
+        if text in GROUND_STATE_LIST:
             df['ground_state'] = [text] * len(df)
-        if text in ['不']:
-            df['ground_state'] = ['不良'] * len(df)
-        if text in ['稍']:
-            df['ground_state'] = ['稍重'] * len(df)
-        if text in ['曇', '晴', '雨', '小雨', '小雪', '雪']:
+        if text in WEATHER_LIST:
             df['weather'] = [text] * len(df)
 
     df['date'] = [date] * len(df)
@@ -217,5 +212,5 @@ def scrape_race_card(race_id: str, date: str) -> pd.DataFrame:
     df['jockey_id'] = jockey_id_list
     df['trainer_id'] = trainer_id_list
 
-    race_card_df = df.drop(['印', 'Unnamed: 9_level_1', '人気', '登録', 'メモ'], axis=1)
+    race_card_df = df.drop(['印', 'Unnamed: 9_level_1', '登録', 'メモ'], axis=1)
     return race_card_df
