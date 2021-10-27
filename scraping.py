@@ -1,7 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 import pandas as pd
-import time
 import requests
 import re
 from bs4 import BeautifulSoup
@@ -32,9 +31,8 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
     """
     url = 'https://db.sp.netkeiba.com/race/' + race_id
     df_list = pd.read_html(url)
-    result_df = df_list[0]
+    df = df_list[0]
 
-    time.sleep(1)
     html = requests.get(url)
     html.encoding = 'EUC-JP'
     soup = BeautifulSoup(html.text, 'html.parser')
@@ -97,9 +95,11 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
         trainer_id = re.findall(r'\d+', a['href'])
         trainer_id_list.append(trainer_id[0])
 
-    result_df['horse_id'] = horse_id_list
-    result_df['jockey_id'] = jockey_id_list
-    result_df['trainer_id'] = trainer_id_list
+    df['horse_id'] = horse_id_list
+    df['jockey_id'] = jockey_id_list
+    df['trainer_id'] = trainer_id_list
+
+    result_df = df.drop(['タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
 
     # payoff
     payoff_table = df_list[1]

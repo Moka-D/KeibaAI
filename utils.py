@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 import os
 import datetime
+import pandas as pd
+from common import InvalidArgument
 
 
 MAX_PLACE_NUM = 11
@@ -10,16 +12,14 @@ MAX_DAY_NUM = 13
 MAX_RACE_NUM = 13
 
 
-def create_race_id_list(start_year: int, last_year: int) -> list[str]:
+def create_race_id_list(year: int) -> list[str]:
     """
-    指定した年範囲のレースIDを生成する関数
+    指定した年の全レースIDを生成する関数
 
     Parameters
     ----------
-    start_year : int
-        開始年 (>= 1975)
-    last_year : int
-        終了年 (<= 今年 and >= start_year)
+    year : int
+        年 (>= 1975 and <= 今年)
 
     Returns
     -------
@@ -27,20 +27,44 @@ def create_race_id_list(start_year: int, last_year: int) -> list[str]:
         レースIDのリスト
     """
     # 引数チェック
-    if start_year > last_year:
-        raise ValueError("start_year は last_year 以下の値を設定してください。")
-    if start_year < 1975:
-        raise ValueError("start_year は 1975 以上の整数を指定してください。")
-    if last_year > datetime.date.today().year:
-        raise ValueError("last_year は %d 以下の整数を指定してください。" % datetime.date.today().year)
+    if year < 1975:
+        raise InvalidArgument("引数 year は 1975 以上の整数を指定してください。")
+    if year > datetime.date.today().year:
+        raise InvalidArgument("引数 year は %d 以下の整数を指定してください。" % datetime.date.today().year)
 
     race_id_list = []
-    for year in range(start_year, last_year + 1):
-        for place in range(1, MAX_PLACE_NUM):
-            for hold in range(1,MAX_HOLD_NUM):
-                for day in range(1, MAX_DAY_NUM):
-                    for race in range(1, MAX_RACE_NUM):
-                        race_id = "{:4d}{:0>2d}{:0>2d}{:0>2d}{:0>2d}".format(year, place, hold, day, race)
-                        race_id_list.append(race_id)
+    for place in range(1, MAX_PLACE_NUM):
+        for hold in range(1,MAX_HOLD_NUM):
+            for day in range(1, MAX_DAY_NUM):
+                for race in range(1, MAX_RACE_NUM):
+                    race_id = "{:4d}{:0>2d}{:0>2d}{:0>2d}{:0>2d}".format(year, place, hold, day, race)
+                    race_id_list.append(race_id)
 
     return race_id_list
+
+
+def split_data(df: pd.DataFrame, test_size: float = 0.3) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    学習データとテストデータに分割する関数
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        入力データ
+    test_size : float, default 0.3
+        テストデータサイズの割合
+
+    Returns
+    -------
+    train : pandas.DataFrame
+        学習データ
+    test : pandas.DataFrame
+        テストデータ
+    """
+    sorted_id_list = df.sort_values('date').index.unique()
+    drop_threshold = round(len(sorted_id_list) * (1 - test_size))
+    train_id_list = sorted_id_list[:drop_threshold]
+    test_id_list = sorted_id_list[drop_threshold:]
+    train = df.loc[train_id_list]
+    test = df.loc[test_id_list]
+    return train, test
