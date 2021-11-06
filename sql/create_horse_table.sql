@@ -1,4 +1,4 @@
-CREATE TABLE "horse" (
+CREATE TABLE if not exists "horse" (
 	"id"	TEXT NOT NULL UNIQUE,
 	"name"	TEXT NOT NULL,
 	"father"	TEXT,

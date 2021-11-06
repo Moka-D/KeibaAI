@@ -1,18 +1,59 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import os
+import glob
 import re
 import sqlite3
-from typing import final
 import pandas as pd
 from common import InvalidArgument
 from scraping import scrape_horse_peds
 
 
 class DBManager:
+    """
+    データベース管理クラス
+    """
+
     def __init__(self, db_filepath: str) -> None:
+        """
+        コンストラクタ
+
+        Parameters
+        ----------
+        db_filepath : str
+            dbファイルへのパス
+        """
         self.path = db_filepath
 
+        # 存在しないdbファイルの場合は、各tableを作成する
+        if not os.path.exists(db_filepath):
+            print('Creating tables...')
+            conn = sqlite3.connect(db_filepath)
+            cur = conn.cursor()
+            paths = map(os.path.abspath, glob.glob('./sql/*.sql', recursive=False))
+            paths = filter(os.path.isfile, paths)
+            paths = sorted(paths)
+            for _, p in enumerate(paths):
+                with open(p) as f:
+                    sql = f.read()
+                    cur.execute(sql)
+            conn.close()
+
     def insert_race_data(self, race_id: str, info: dict[str, str], result: pd.DataFrame, payoff: pd.DataFrame) -> None:
+        """
+        レースデータをDBに登録する関数
+
+        Parameters
+        ----------
+        race_id : str
+            レースID
+        info : dict[str, str]
+            レース情報
+        result : pandas.DataFrame
+            レース結果
+        payoff : pandas.DataFrame
+            払い戻し表
+        """
         race_id_i = int(race_id)
         conn = sqlite3.connect(self.path)
         cur = conn.cursor()

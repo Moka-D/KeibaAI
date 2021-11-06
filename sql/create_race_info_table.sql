@@ -1,4 +1,4 @@
-CREATE TABLE "race_info" (
+CREATE TABLE if not exists "race_info" (
 	"race_id"	INTEGER NOT NULL UNIQUE,
 	"race_title"	TEXT,
 	"date"	TEXT,

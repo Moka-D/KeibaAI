@@ -102,7 +102,8 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
     df['jockey_id'] = jockey_id_list
     df['trainer_id'] = trainer_id_list
 
-    result_df = result_preprocess(df, race_id)
+    df['賞金（万円）'].fillna(0, inplace=True)
+    result_df = df.drop(['タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
 
     # payoff
     payoff_table = df_list[1]
@@ -220,46 +221,6 @@ def scrape_race_card(race_id: str, date: str) -> pd.DataFrame:
     df.drop(['印', 'Unnamed: 9_level_1', '登録', 'メモ'], axis=1, inplace=True)
     race_card_df = race_card_preprocess(df, race_id)
     return race_card_df
-
-
-def result_preprocess(result_df: pd.DataFrame, race_id: str) -> pd.DataFrame:
-    """
-    スクレイプしたレース結果データを処理する関数
-
-    Parameters
-    ----------
-    result_df : pandas.DataFrame
-        レース結果DataFrame
-    race_id : str
-        レースID
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        処理後レース結果DataFrame
-    """
-    df = result_df.copy()
-
-    # 着順
-    df['着順'] = pd.to_numeric(df['着順'], errors='coerce')
-    df['着順'].fillna(INVALID_VALUE, inplace=True)
-    df['着順'] = df['着順'].astype(int)
-
-    # 性齢
-    df['性'] = df['性齢'].map(lambda x: str(x)[0])
-    df['年齢'] = df['性齢'].map(lambda x: str(x)[1]).astype(int)
-
-    # 馬体重
-    df['体重'] = df['馬体重'].str.split('(', expand=True)[0].astype(int)
-    df['体重変化'] = df['馬体重'].str.split('(', expand=True)[1].str[:-1].astype(int)
-
-    # 賞金
-    df['賞金（万円）'].fillna(0, inplace=True)
-
-    # 着差
-    df['着差'].fillna(0, inplace=True)
-
-    return df.drop(['性齢', '馬体重', 'タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
 
 
 def race_card_preprocess(result_df: pd.DataFrame, race_id: str) -> pd.DataFrame:

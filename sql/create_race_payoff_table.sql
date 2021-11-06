@@ -1,4 +1,4 @@
-CREATE TABLE "race_payoff" (
+CREATE TABLE if not exists "race_payoff" (
 	"race_id"	INTEGER NOT NULL,
 	"ticket_type"	TEXT NOT NULL,
 	"pattern"	TEXT NOT NULL,
