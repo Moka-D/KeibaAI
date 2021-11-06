@@ -102,6 +102,8 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
     df['jockey_id'] = jockey_id_list
     df['trainer_id'] = trainer_id_list
 
+    # データ整形
+    df['単勝'] = pd.to_numeric(df['単勝'], errors='coerce')
     df['賞金（万円）'].fillna(0, inplace=True)
     result_df = df.drop(['タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
 

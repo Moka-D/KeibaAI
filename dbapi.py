@@ -74,12 +74,12 @@ class DBManager:
             self._insert_unduplicated('trainer', dict(zip(result['trainer_id'], result['調教師'])), cur)
 
             # レース結果
-            sql = 'INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+            sql = 'INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
             for _, row in result.iterrows():
                 data = (race_id_i, row['馬番'], row['枠番'], row['着順'], row['horse_id'], \
-                        row['年齢'], row['性'], row['斤量'], row['jockey_id'], row['タイム'], \
-                        row['着差'], row['通過'], row['上り'], row['単勝'], row['人気'], \
-                        row['体重'], row['体重変化'], row['trainer_id'], row['馬主'], row['賞金（万円）'])
+                        row['性齢'], row['斤量'], row['jockey_id'], row['タイム'], row['着差'], \
+                        row['通過'], row['上り'], row['単勝'], row['人気'], row['馬体重'], \
+                        row['trainer_id'], row['馬主'], row['賞金（万円）'])
                 cur.execute(sql, data)
 
             # 払い戻し表
@@ -92,7 +92,6 @@ class DBManager:
                 cur.execute(sql, data)
 
             conn.commit()
-            print("All data of race_id:{} has been successfully committed.".format(race_id))
         except Exception as e:
             print(e)
             conn.rollback()
@@ -104,38 +103,27 @@ class DBManager:
         if table_name not in ['horse', 'jockey', 'trainer']:
             raise InvalidArgument("invalid argument of table_name: '{}'".format(table_name))
 
-        for key, value in data.items():
-            if not self._is_name_inserted(table_name, key, cur):
+        for id, name in data.items():
+            if not self._is_name_inserted(table_name, id, cur):
                 if table_name == 'horse':
-                    self._insert_horse_data(key, value, cur)
+                    sql = 'INSERT INTO horse VALUES (?,?,?,?,?,?,?,?)'
+                    try:
+                        print("Scraping peds of {}".format(name))
+                        peds = scrape_horse_peds(id)
+                        data = (id, name, peds[0], peds[1], peds[2], peds[3], peds[4], peds[5])
+                    except Exception as e:
+                        print(e + 'at horse_id:' + id)
+                        data = (id, name, None, None, None, None, None, None)
                 else:
-                    self._insert_name(table_name, key, value, cur)
-            else:
-                print("ID:{} already exists in {} table.".format(key, table_name))
-
-    def _insert_horse_data(self, horse_id: str, horse_name: str, cur: sqlite3.Cursor) -> None:
-        sql = 'INSERT INTO horse VALUES (?,?,?,?,?,?,?,?)'
-        try:
-            peds = scrape_horse_peds(horse_id)
-            data = (horse_id, horse_name, peds[0], peds[1], peds[2], peds[3], peds[4], peds[5])
-        except Exception as e:
-            print(e + 'at horse_id:' + horse_id)
-            data = (horse_id, horse_name, None, None, None, None, None, None)
-        cur.execute(sql, data)
-
-    def _insert_name(self, table_name: str, id: str, name: str, cur: sqlite3.Cursor) -> None:
-        if table_name not in ['horse', 'jockey', 'trainer']:
-            raise InvalidArgument("invalid argument of table_name: '{}'".format(table_name))
-
-        sql = 'INSERT INTO {} VALUES (?,?)'.format(table_name)
-        data = (id, name)
-        cur.execute(sql, data)
+                    sql = 'INSERT INTO {} VALUES (?,?)'.format(table_name)
+                    data = (id, name)
+                cur.execute(sql, data)
 
     def _is_name_inserted(self, table_name: str, id: str, cur: sqlite3.Cursor) -> bool:
         if table_name not in ['horse', 'jockey', 'trainer']:
             raise InvalidArgument("invalid argument of table_name: '{}'".format(table_name))
 
-        sql = 'SELECT * FROM {} WHERE {}_id = "{}"'.format(table_name, table_name, id)
+        sql = 'SELECT * FROM {} WHERE id = "{}"'.format(table_name, id)
         cur.execute(sql)
         if not cur.fetchall():
             return False
