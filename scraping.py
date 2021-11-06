@@ -5,6 +5,7 @@ import requests
 import re
 from bs4 import BeautifulSoup
 from common import INVALID_VALUE
+import time
 
 
 DATE_PATTERN = re.compile('\d{4}/\d{1,2}/\d{1,2}')
@@ -30,6 +31,7 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
     payoff_table : pandas.DataFrame
         払い戻し表
     """
+    time.sleep(1)
     url = 'https://db.sp.netkeiba.com/race/' + race_id
     df_list = pd.read_html(url)
     df = df_list[0]
@@ -100,8 +102,7 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
     df['jockey_id'] = jockey_id_list
     df['trainer_id'] = trainer_id_list
 
-    df.drop(['タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1, inplace=True)
-    result_df = result_preprocess(df)
+    result_df = result_preprocess(df, race_id)
 
     # payoff
     payoff_table = df_list[1]
@@ -123,6 +124,7 @@ def scrape_horse_peds(horse_id: str) -> pd.DataFrame:
     peds_df : pandas.DataFrame
         馬の血統表 (2世代前まで)
     """
+    time.sleep(1)
     url = 'https://db.netkeiba.com/horse/' + horse_id
     df = pd.read_html(url)[2]
 
@@ -153,6 +155,7 @@ def scrape_race_card(race_id: str, date: str) -> pd.DataFrame:
     race_card_df : pd.DataFrame
         出馬表
     """
+    time.sleep(1)
     url = 'https://race.netkeiba.com/race/shutuba.html?race_id=' + race_id
     df = pd.read_html(url)[0]
     df = df.T.reset_index(level=0, drop=True).T
@@ -215,11 +218,11 @@ def scrape_race_card(race_id: str, date: str) -> pd.DataFrame:
     df['trainer_id'] = trainer_id_list
 
     df.drop(['印', 'Unnamed: 9_level_1', '登録', 'メモ'], axis=1, inplace=True)
-    race_card_df = race_card_preprocess(df)
+    race_card_df = race_card_preprocess(df, race_id)
     return race_card_df
 
 
-def result_preprocess(result_df: pd.DataFrame) -> pd.DataFrame:
+def result_preprocess(result_df: pd.DataFrame, race_id: str) -> pd.DataFrame:
     """
     スクレイプしたレース結果データを処理する関数
 
@@ -227,6 +230,8 @@ def result_preprocess(result_df: pd.DataFrame) -> pd.DataFrame:
     ----------
     result_df : pandas.DataFrame
         レース結果DataFrame
+    race_id : str
+        レースID
 
     Returns
     -------
@@ -254,15 +259,10 @@ def result_preprocess(result_df: pd.DataFrame) -> pd.DataFrame:
     # 着差
     df['着差'].fillna(0, inplace=True)
 
-    # 型変換
-    df['horse_id'] = df['horse_id'].astype(int)
-    df['jockey_id'] = df['jockey_id'].astype(int)
-    df['trainer_id'] = df['trainer_id'].astype(int)
-
-    return df.drop(['性齢', '馬体重'], axis=1)
+    return df.drop(['性齢', '馬体重', 'タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
 
 
-def race_card_preprocess(result_df: pd.DataFrame) -> pd.DataFrame:
+def race_card_preprocess(result_df: pd.DataFrame, race_id: str) -> pd.DataFrame:
     """
     スクレイプした出馬表データを処理する関数
 
@@ -270,6 +270,8 @@ def race_card_preprocess(result_df: pd.DataFrame) -> pd.DataFrame:
     ----------
     result_df : pandas.DataFrame
         出馬表DataFrame
+    race_id : str
+        レースID
 
     Returns
     -------
@@ -285,10 +287,5 @@ def race_card_preprocess(result_df: pd.DataFrame) -> pd.DataFrame:
     # 馬体重
     df['体重'] = df['馬体重(増減)'].str.split('(', expand=True)[0].astype(int)
     df['体重変化'] = df['馬体重(増減)'].str.split('(', expand=True)[1].str[:-1].astype(int)
-
-    # 型変換
-    df['horse_id'] = df['horse_id'].astype(int)
-    df['jockey_id'] = df['jockey_id'].astype(int)
-    df['trainer_id'] = df['trainer_id'].astype(int)
 
     return df.drop(['性齢', '馬体重(増減)', '人気'], axis=1)
