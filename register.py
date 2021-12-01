@@ -1,18 +1,15 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from datetime import time
-import sys
-import pandas as pd
-from scraping import scrape_race_info, scrape_horse_peds
 from dbapi import DBManager
 from common import InvalidArgument
 from utils import create_race_id_list
+from tqdm.notebook import tqdm
 
 
-DB_FILEPATH = 'Z:\db\keiba.db'
+DB_FILEPATH: str = "D:\\Masatoshi\\Work\\db\\keiba.db"
 
 
-def registe_race_results(year_list: list[int]) -> None:
+def insert_race_results(year_list: list[int], db_path: str = DB_FILEPATH) -> None:
     """
     レース結果をDBに登録する関数
 
@@ -20,9 +17,10 @@ def registe_race_results(year_list: list[int]) -> None:
     ----------
     year_list : list[int]
         年一覧
+    db_path : str
+        データベースファイルのパス
     """
-    # データベース接続
-    dbm = DBManager.open(DB_FILEPATH)
+    dbm = DBManager(db_path)
 
     for year in year_list:
         try:
@@ -31,32 +29,7 @@ def registe_race_results(year_list: list[int]) -> None:
             print(e)
             continue
 
-        for race_id in race_id_list:
-            time.sleep(1)
-            try:
-                info, result, payoff = scrape_race_info(race_id)
-            except IndexError:
-                continue
-            except Exception as e:
-                print(e)
-                print('race_id: '+ race_id)
-                dbm.close()
-                return
+        for race_id in tqdm(race_id_list):
+            dbm.insert_race_data_with_scrape(race_id)
 
-    dbm.close()
-
-
-if __name__ == '__main__':
-    year_list = []
-    args = sys.argv
-    n_args = len(args)
-    if n_args >= 2:
-        for i in range(1, n_args):
-            if args[i].isdigit():
-                year_list.append(int(args[i]))
-            else:
-                raise InvalidArgument("Argument is not digit.")
-    else:
-        raise InvalidArgument("Argumens are too short.")
-
-    print(year_list)
+        print("Race data of {} has been inserted successfully.".format(year))

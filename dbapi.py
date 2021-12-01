@@ -4,32 +4,28 @@ import os
 import glob
 import re
 import sqlite3
+from sqlite3.dbapi2 import SQLITE_PRAGMA
 import pandas as pd
 from common import InvalidArgument
-from scraping import scrape_horse_peds
+from scraping import scrape_horse_peds, scrape_race_info
+import datetime as dt
 
 
 class DBManager:
     """
     データベース管理クラス
+
+    Parameters
+    ----------
+    db_filepath : str
+        dbファイルへのパス
     """
-
     def __init__(self, db_filepath: str) -> None:
-        """
-        コンストラクタ
-
-        Parameters
-        ----------
-        db_filepath : str
-            dbファイルへのパス
-        """
-        self.path = db_filepath
-
         # 存在しないdbファイルの場合は、各tableを作成する
         if not os.path.exists(db_filepath):
             print('Creating tables...')
-            conn = sqlite3.connect(db_filepath)
-            cur = conn.cursor()
+            self.conn = sqlite3.connect(db_filepath)
+            cur = self.conn.cursor()
             paths = map(os.path.abspath, glob.glob('./sql/*.sql', recursive=False))
             paths = filter(os.path.isfile, paths)
             paths = sorted(paths)
@@ -37,33 +33,34 @@ class DBManager:
                 with open(p) as f:
                     sql = f.read()
                     cur.execute(sql)
-            conn.close()
+            cur.close()
+        else:
+            self.conn = sqlite3.connect(db_filepath)
 
-    def insert_race_data(self, race_id: str, info: dict[str, str], result: pd.DataFrame, payoff: pd.DataFrame) -> None:
+    def __del__(self):
+        self.conn.close()
+
+    def insert_race_data_with_scrape(self, race_id: str) -> None:
         """
-        レースデータをDBに登録する関数
+        レースデータをスクレイピングしてDBに登録する関数
 
         Parameters
         ----------
         race_id : str
             レースID
-        info : dict[str, str]
-            レース情報
-        result : pandas.DataFrame
-            レース結果
-        payoff : pandas.DataFrame
-            払い戻し表
         """
         race_id_i = int(race_id)
-        conn = sqlite3.connect(self.path)
-        cur = conn.cursor()
+        cur = self.conn.cursor()
         try:
-            if self._is_race_inserted('race_info', race_id_i, cur):
+            if self.is_race_inserted('race_info', race_id_i, cur):
                 raise Exception("race_id:{} already exists in results table".format(race_id_i))
+
+            info, result, payoff = scrape_race_info(race_id)
 
             # レース情報
             sql = 'INSERT INTO race_info VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
-            data = (race_id_i, info['title'], info['date'], int(race_id[4:6]), int(race_id[6:8]), \
+            race_date = int(dt.datetime.strptime(info['date'], '%Y/%m/%d').date().strftime('%Y%m%d'))
+            data = (race_id_i, info['title'], race_date, int(race_id[4:6]), int(race_id[6:8]), \
                     int(race_id[8:10]), int(race_id[10:12]), int(info['course_dist']), \
                     info['race_type'], info['turn'], info['ground_state'], info['weather'])
             cur.execute(sql, data)
@@ -91,13 +88,15 @@ class DBManager:
                 data = (race_id_i, row[0], row[1], row[2], row[3])
                 cur.execute(sql, data)
 
-            conn.commit()
+            self.conn.commit()
+        except ValueError:
+            pass
         except Exception as e:
             print(e)
-            conn.rollback()
+            print('race_id:' + race_id)
+            self.conn.rollback()
         finally:
             cur.close()
-            conn.close()
 
     def _insert_unduplicated(self, table_name: str, data: dict[str, str], cur: sqlite3.Cursor) -> None:
         if table_name not in ['horse', 'jockey', 'trainer']:
@@ -108,7 +107,6 @@ class DBManager:
                 if table_name == 'horse':
                     sql = 'INSERT INTO horse VALUES (?,?,?,?,?,?,?,?)'
                     try:
-                        print("Scraping peds of {}".format(name))
                         peds = scrape_horse_peds(id)
                         data = (id, name, peds[0], peds[1], peds[2], peds[3], peds[4], peds[5])
                     except Exception as e:
@@ -130,7 +128,7 @@ class DBManager:
         else:
             return True
 
-    def _is_race_inserted(self, table_name: str, race_id: int, cur: sqlite3.Cursor) -> bool:
+    def is_race_inserted(self, table_name: str, race_id: int, cur: sqlite3.Cursor) -> bool:
         if table_name not in ['results', 'race_info', 'race_payoff']:
             raise InvalidArgument("invalid argument of table_name: '{}'".format(table_name))
 
