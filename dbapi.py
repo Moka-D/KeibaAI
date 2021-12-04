@@ -24,8 +24,8 @@ class DBManager:
         # 存在しないdbファイルの場合は、各tableを作成する
         if not os.path.exists(db_filepath):
             print('Creating tables...')
-            self.conn = sqlite3.connect(db_filepath)
-            cur = self.conn.cursor()
+            self._conn = sqlite3.connect(db_filepath)
+            cur = self._conn.cursor()
             paths = map(os.path.abspath, glob.glob('./sql/*.sql', recursive=False))
             paths = filter(os.path.isfile, paths)
             paths = sorted(paths)
@@ -35,10 +35,10 @@ class DBManager:
                     cur.execute(sql)
             cur.close()
         else:
-            self.conn = sqlite3.connect(db_filepath)
+            self._conn = sqlite3.connect(db_filepath)
 
     def __del__(self):
-        self.conn.close()
+        self._conn.close()
 
     def insert_race_data_with_scrape(self, race_id: str) -> None:
         """
@@ -50,7 +50,7 @@ class DBManager:
             レースID
         """
         race_id_i = int(race_id)
-        cur = self.conn.cursor()
+        cur = self._conn.cursor()
         try:
             if self.is_race_inserted('race_info', race_id_i, cur):
                 raise Exception("race_id:{} already exists in results table".format(race_id_i))
@@ -88,13 +88,13 @@ class DBManager:
                 data = (race_id_i, row[0], row[1], row[2], row[3])
                 cur.execute(sql, data)
 
-            self.conn.commit()
+            self._conn.commit()
         except ValueError:
             pass
         except Exception as e:
             print(e)
             print('race_id:' + race_id)
-            self.conn.rollback()
+            self._conn.rollback()
         finally:
             cur.close()
 
