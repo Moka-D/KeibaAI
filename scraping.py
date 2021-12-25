@@ -4,8 +4,8 @@ import pandas as pd
 import requests
 import re
 from bs4 import BeautifulSoup
-from common import INVALID_VALUE
 import time
+import numpy as np
 
 
 DATE_PATTERN = re.compile('\d{4}/\d{1,2}/\d{1,2}')
@@ -14,8 +14,7 @@ WEATHER_LIST = ['曇', '晴', '雨', '小雨', '小雪', '雪']
 
 
 def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.DataFrame]:
-    """
-    レース結果をスクレイピングする関数
+    """レース結果をスクレイピングする関数
 
     Parameters
     ----------
@@ -35,6 +34,7 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
     url = 'https://db.sp.netkeiba.com/race/' + race_id
     df_list = pd.read_html(url)
     df = df_list[0]
+    df = df.drop(['着差', 'タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
 
     html = requests.get(url)
     html.encoding = 'EUC-JP'
@@ -73,49 +73,65 @@ def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.Dat
         if text in WEATHER_LIST:
             info_dict['weather'] = text
 
+    if 'course_dist' not in info_dict:
+        info_dict['course_dist'] = None
+    if 'ground_state' not in info_dict:
+        info_dict['ground_state'] = None
+    if 'weather' not in info_dict:
+        info_dict['weather'] = None
+
     # date
     date_text = soup.find('span', attrs={'class': 'Race_Date'}).text
     info_dict['date'] = re.search(DATE_PATTERN, date_text).group()
 
     # horse_id
     horse_id_list = []
-    horse_a_list = result_table.find_all('a', attrs={'href': re.compile('/horse/\d+/')})
+    horse_a_list = result_table.find_all('a', attrs={'href': re.compile('/horse/.*/')})
     for a in horse_a_list:
-        horse_id = re.findall(r'\d+', a['href'])
-        horse_id_list.append(horse_id[0])
+        horse_id = a['href'].removeprefix('https://db.sp.netkeiba.com/horse/').removesuffix('/')
+        horse_id_list.append(horse_id)
 
     # jockey_id
     jockey_id_list = []
-    jockey_a_list = result_table.find_all('a', attrs={'href': re.compile('/jockey/\d+/')})
+    jockey_a_list = result_table.find_all('a', attrs={'href': re.compile('/jockey/.*/')})
     for a in jockey_a_list:
-        jockey_id = re.findall(r'\d+', a['href'])
-        jockey_id_list.append(jockey_id[0])
+        jockey_id = a['href'].removeprefix('https://db.sp.netkeiba.com/jockey/').removesuffix('/')
+        jockey_id_list.append(jockey_id)
 
     # trainer_id
     trainer_id_list = []
-    trainer_a_list = result_table.find_all('a', attrs={'href': re.compile('/trainer/\d+/')})
+    trainer_a_list = result_table.find_all('a', attrs={'href': re.compile('/trainer/.*/')})
     for a in trainer_a_list:
-        trainer_id = re.findall(r'\d+', a['href'])
-        trainer_id_list.append(trainer_id[0])
+        trainer_id = a['href'].removeprefix('https://db.sp.netkeiba.com/trainer/').removesuffix('/')
+        trainer_id_list.append(trainer_id)
 
     df['horse_id'] = horse_id_list
     df['jockey_id'] = jockey_id_list
     df['trainer_id'] = trainer_id_list
 
     # データ整形
+    df.loc[df['タイム'].notnull(), 'タイム'] = df.loc[df['タイム'].notnull(), 'タイム'].map(lambda x: float(x.split(':')[0]) * 60.0 + float(x.split(':')[1]))
     df['単勝'] = pd.to_numeric(df['単勝'], errors='coerce')
     df['賞金（万円）'].fillna(0, inplace=True)
-    result_df = df.drop(['タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
+
+    # トップとのタイム差
+    #df['タイム差'] = df['タイム'] - df['タイム'].min()
+    #df.loc[0, 'タイム差'] = df.loc[0, 'タイム'] - df.drop(0)['タイム'].min()
+
+    # タイム指数の取得
+    result_df = df.merge(scrape_time_index(race_id), left_on='馬番', right_on='馬番', how='left')
 
     # payoff
-    payoff_table = df_list[1]
+    if len(df_list) >= 2:
+        payoff_table = df_list[1]
+    else:
+        payoff_table = pd.DataFrame()
 
     return info_dict, result_df, payoff_table
 
 
 def scrape_horse_peds(horse_id: str) -> pd.DataFrame:
-    """
-    馬の血統(2世代前まで)をスクレイピングする関数
+    """馬の血統(2世代前まで)をスクレイピングする関数
 
     Parameters
     ----------
@@ -142,9 +158,8 @@ def scrape_horse_peds(horse_id: str) -> pd.DataFrame:
     return peds_df
 
 
-def scrape_race_card(race_id: str, date: str) -> pd.DataFrame:
-    """
-    出馬表をスクレイピングする関数
+def scrape_race_card(race_id: str, date: int) -> pd.DataFrame:
+    """出馬表をスクレイピングする関数
 
     Parameters
     ----------
@@ -187,13 +202,21 @@ def scrape_race_card(race_id: str, date: str) -> pd.DataFrame:
 
     for text in info:
         if 'm' in text:
-            df['course_dist'] = [int(re.findall(r'\d+', text)[0])] * len(df)
+            df['distance'] = [int(re.findall(r'\d+', text)[0])] * len(df)
         if text in GROUND_STATE_LIST:
-            df['ground_state'] = [text] * len(df)
+            df['ground'] = [text] * len(df)
         if text in WEATHER_LIST:
             df['weather'] = [text] * len(df)
 
     df['date'] = [date] * len(df)
+    df['race_id'] = [race_id] * len(df)
+    df['horse_num'] = [len(df)] * len(df)
+
+    # 優勝賞金
+    prise_text = soup.find('div', attrs={'class': 'RaceList_Item02'}).text
+    prise_text = re.findall(r'本賞金:\d*', prise_text)[0]
+    prise = int(re.findall(r'\d+', prise_text)[0])
+    df['win_prise'] = [prise] * len(df)
 
     # horse_id
     horse_id_list = []
@@ -221,34 +244,53 @@ def scrape_race_card(race_id: str, date: str) -> pd.DataFrame:
     df['trainer_id'] = trainer_id_list
 
     df.drop(['印', 'Unnamed: 9_level_1', '登録', 'メモ'], axis=1, inplace=True)
-    race_card_df = race_card_preprocess(df, race_id)
-    return race_card_df
+    return df
 
 
-def race_card_preprocess(result_df: pd.DataFrame, race_id: str) -> pd.DataFrame:
-    """
-    スクレイプした出馬表データを処理する関数
+def scrape_horse_results(horse_id: str) -> pd.DataFrame:
+    """馬の過去結果をスクレイピング
 
     Parameters
     ----------
-    result_df : pandas.DataFrame
-        出馬表DataFrame
-    race_id : str
-        レースID
+    horse_id : str
+        馬ID
 
     Returns
     -------
-    df : pandas.DataFrame
-        処理後出馬表DataFrame
+    pd.DataFrame
+        結果df
     """
-    df = result_df.copy()
+    time.sleep(1)
+    url = 'https://db.netkeiba.com/horse/' + horse_id
+    html_df = pd.read_html(url)
+    df = html_df[3]
+    if df.columns[0] == '受賞歴':
+        df = html_df[4]
 
-    # 性齢
-    df['性'] = df['性齢'].map(lambda x: str(x)[0])
-    df['年齢'] = df['性齢'].map(lambda x: str(x)[1]).astype(int)
+    html = requests.get(url)
+    html.encoding = 'EUC-JP'
+    soup = BeautifulSoup(html.text, 'html.parser')
+    result_table = soup.find('table', attrs={'class': 'db_h_race_results nk_tb_common'})
 
-    # 馬体重
-    df['体重'] = df['馬体重(増減)'].str.split('(', expand=True)[0].astype(int)
-    df['体重変化'] = df['馬体重(増減)'].str.split('(', expand=True)[1].str[:-1].astype(int)
+    jockey_a_list = result_table.find_all('a', attrs={'href': re.compile('/jockey/\d+/')})
+    jockey_id_list = []
+    for a in jockey_a_list:
+        jockey_id = re.findall(r'\d+', a['href'])
+        jockey_id_list.append(jockey_id[0])
+    df['jockey_id'] = jockey_id_list
 
-    return df.drop(['性齢', '馬体重(増減)', '人気'], axis=1)
+    return df.drop(['映像', '馬場指数', 'ﾀｲﾑ指数', '厩舎ｺﾒﾝﾄ', '備考'], axis=1)
+
+
+def scrape_time_index(race_id: str):
+    time.sleep(1)
+    url = 'http://race.sp.netkeiba.com/?pid=race_result&race_id=' + race_id
+    df_list = pd.read_html(url)
+    df = df_list[0]
+    if 'タイム' not in df.columns:
+        df = df_list[1]
+    try:
+        df['タイム指数'] = df['タイム'].fillna('(0.0)').map(lambda x: float(x.split(' ')[-1][1:-1]))
+    except ValueError:
+        df['タイム指数'] = np.nan
+    return df[['馬番', 'タイム指数']]
