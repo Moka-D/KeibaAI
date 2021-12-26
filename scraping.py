@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from typing import Dict, Tuple
 import pandas as pd
 import requests
 import re
@@ -13,7 +14,7 @@ GROUND_STATE_LIST = ['良', '稍', '重', '不']
 WEATHER_LIST = ['曇', '晴', '雨', '小雨', '小雪', '雪']
 
 
-def scrape_race_info(race_id: str) -> tuple[dict[str, str], pd.DataFrame, pd.DataFrame]:
+def scrape_race_info(race_id: str) -> Tuple[Dict[str, str], pd.DataFrame, pd.DataFrame]:
     """レース結果をスクレイピングする関数
 
     Parameters

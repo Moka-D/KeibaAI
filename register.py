@@ -1,15 +1,19 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from typing import List
+from common import InvalidArgument, get_environment
 from dbapi import DBManager
-from common import InvalidArgument
 from utils import create_race_id_list
-from tqdm.notebook import tqdm
+if get_environment() == 'Jupyter':
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
 
 DB_FILEPATH: str = "D:\\Masatoshi\\Work\\db\\keiba.db"
 
 
-def insert_race_results(year_list: list[int], db_path: str = DB_FILEPATH) -> None:
+def insert_race_results(year_list: List[int], db_path: str = DB_FILEPATH) -> None:
     """
     レース結果をDBに登録する関数
 

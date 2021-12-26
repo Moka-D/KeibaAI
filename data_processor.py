@@ -2,10 +2,14 @@
 # -*- coding: utf-8 -*-
 import datetime as dt
 import re
-from typing import List, Union
+from typing import List, Tuple, Union
 import warnings
 import pandas as pd
-from tqdm.notebook import tqdm
+from common import get_environment
+if get_environment() == 'Jupyter':
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
 import numpy as np
 from dbapi import DBManager
@@ -13,7 +17,7 @@ from scraping import scrape_race_card
 import itertools
 
 
-def split_data(df, test_size=0.3):
+def split_data(df: pd.DataFrame, test_size: float = 0.3) -> Tuple[pd.DataFrame, pd.DataFrame]:
     sorted_id_list = df.sort_values('date').index.unique()
     drop_threshold = round(len(sorted_id_list) * (1 - test_size))
     train_id_list = sorted_id_list[:drop_threshold]
@@ -40,7 +44,7 @@ def encode_weather(weather: str) -> int:
         return 0
 
 
-def encode_ground(ground):
+def encode_ground(ground: str) -> int:
     if ground == '良':
         return 1
     elif ground == '稍':
@@ -53,7 +57,7 @@ def encode_ground(ground):
         return 0
 
 
-def encode_race_type(race_type):
+def encode_race_type(race_type: str) -> int:
     if race_type == '芝':
         return 1
     elif race_type == 'ダート':
@@ -64,7 +68,7 @@ def encode_race_type(race_type):
         return 0
 
 
-def encode_turn(turn):
+def encode_turn(turn: str) -> int:
     if turn == '左':
         return 1
     elif turn == '右':

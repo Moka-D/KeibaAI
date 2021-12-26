@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-import os
-import datetime
+import datetime as dt
+from typing import List, Tuple
 import pandas as pd
 from common import InvalidArgument
 
@@ -12,7 +12,7 @@ MAX_DAY_NUM = 13
 MAX_RACE_NUM = 13
 
 
-def create_race_id_list(year: int) -> list[str]:
+def create_race_id_list(year: int) -> List[str]:
     """
     指定した年の全レースIDを生成する関数
 
@@ -29,8 +29,8 @@ def create_race_id_list(year: int) -> list[str]:
     # 引数チェック
     if year < 1975:
         raise InvalidArgument("引数 year は 1975 以上の整数を指定してください。")
-    if year > datetime.date.today().year:
-        raise InvalidArgument("引数 year は %d 以下の整数を指定してください。" % datetime.date.today().year)
+    if year > dt.date.today().year:
+        raise InvalidArgument("引数 year は %d 以下の整数を指定してください。" % dt.date.today().year)
 
     race_id_list = []
     for place in range(1, MAX_PLACE_NUM):
@@ -43,7 +43,7 @@ def create_race_id_list(year: int) -> list[str]:
     return race_id_list
 
 
-def split_data(df: pd.DataFrame, test_size: float = 0.3) -> tuple[pd.DataFrame, pd.DataFrame]:
+def split_data(df: pd.DataFrame, test_size: float = 0.3) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     学習データとテストデータに分割する関数
 

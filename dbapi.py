@@ -4,7 +4,7 @@ import os
 import glob
 import re
 import sqlite3
-from typing import List
+from typing import List, Dict
 import pandas as pd
 from common import InvalidArgument
 from scraping import scrape_horse_peds, scrape_race_info, scrape_horse_results
@@ -101,7 +101,7 @@ class DBManager:
 
         return horse_id_set
 
-    def _insert_unduplicated(self, table_name: str, data: dict[str, str], cur: sqlite3.Cursor) -> None:
+    def _insert_unduplicated(self, table_name: str, data: Dict[str, str], cur: sqlite3.Cursor) -> None:
         if table_name not in ['horse', 'jockey', 'trainer']:
             raise InvalidArgument("invalid argument of table_name: '{}'".format(table_name))
 
@@ -218,9 +218,3 @@ class DBManager:
         sql = 'SELECT id FROM horse'
         df = pd.read_sql(sql, self._conn)
         return df['id'].values.tolist()
-
-
-if __name__ == '__main__':
-    dbm = DBManager("D:\\Masatoshi\\Work\\db\\keiba.db")
-    print(dbm.select_all_resutls())
-
