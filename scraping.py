@@ -283,7 +283,19 @@ def scrape_horse_results(horse_id: str) -> pd.DataFrame:
     return df.drop(['映像', '馬場指数', 'ﾀｲﾑ指数', '厩舎ｺﾒﾝﾄ', '備考'], axis=1)
 
 
-def scrape_time_index(race_id: str):
+def scrape_time_index(race_id: str) -> pd.DataFrame:
+    """出走各馬のタイム指数をスクレイピングで取得する
+
+    Parameters
+    ----------
+    race_id : str
+        レースID
+
+    Returns
+    -------
+    pd.DataFrame
+        馬番とタイム指数をまとめたDataFrame
+    """
     time.sleep(1)
     url = 'http://race.sp.netkeiba.com/?pid=race_result&race_id=' + race_id
     df_list = pd.read_html(url)

@@ -227,13 +227,18 @@ class Results(DataProcessor):
         self.data = result_df
 
     @classmethod
-    def read_db(cls, db_path: str):
+    def read_db(cls, db_path: str) -> 'Results':
         dbm = DBManager(db_path)
         df = dbm.select_all_resutls()
         return cls(df)
 
-    def preprocesing(self, flat_only: bool = True):
+    def preprocesing(self, flat_only: bool = True) -> None:
         """スクレイプしたレース結果データの前処理
+
+        Parameters
+        ----------
+        flat_only : bool, optional
+            平地レースのみ, by default True
         """
         df = self.data.copy()
 
@@ -301,12 +306,12 @@ class Results(DataProcessor):
         df = df[df['date'] >= pd.to_datetime(start_date, format='%Y%m%d')]
         self.data_m = self.merge_all(df, n_samples)
 
-    def process_categorical(self):
+    def process_categorical(self) -> None:
         self.le_horse = LabelEncoder().fit(self.data_pe['horse_id'])
         self.le_jockey = LabelEncoder().fit(self.data_pe['jockey_id'])
         super().process_categorical(self.le_horse, self.le_jockey, self.data_pe)
 
-    def get_final_data(self, drop_nan: bool = True):
+    def get_final_data(self, drop_nan: bool = True) -> pd.DataFrame:
         df = self.data_c.copy()
         if drop_nan:
             df = df.dropna()
@@ -319,7 +324,7 @@ class RaceCard(DataProcessor):
         self.data = df
 
     @classmethod
-    def scrape(cls, race_id_list: List[str], date: int):
+    def scrape(cls, race_id_list: List[str], date: int) -> 'RaceCard':
         data = pd.DataFrame()
         for race_id in race_id_list:
             try:
@@ -334,7 +339,7 @@ class RaceCard(DataProcessor):
 
         return cls(data)
 
-    def preprocess(self):
+    def preprocess(self) -> None:
         """スクレイプした出馬表データを処理する関数
 
         Parameters
@@ -378,7 +383,6 @@ class RaceCard(DataProcessor):
                           'turn', 'ground', 'weather', 'horse_num', 'sex',
                           'age', 'weight', 'weight_change', 'win_prise']]
 
-    def merge_results(self, results: Results, n_samples: int = 2):
+    def merge_results(self, results: Results, n_samples: int = 2) -> None:
         df = self.data_p.copy()
-
         self.data_m = results.merge_all(df, n_samples)
