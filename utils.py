@@ -3,6 +3,14 @@
 import datetime as dt
 from typing import List, Tuple
 import pandas as pd
+import time
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
 from common import InvalidArgument
 
 
@@ -23,7 +31,7 @@ def create_race_id_list(year: int) -> List[str]:
 
     Returns
     -------
-    race_id_list : list[str]
+    List[str]
         レースIDのリスト
     """
     # 引数チェック
@@ -39,6 +47,82 @@ def create_race_id_list(year: int) -> List[str]:
                 for race in range(1, MAX_RACE_NUM):
                     race_id = "{:4d}{:0>2d}{:0>2d}{:0>2d}{:0>2d}".format(year, place, hold, day, race)
                     race_id_list.append(race_id)
+
+    return race_id_list
+
+
+def get_all_race_id(
+        start_year: int,
+        end_year: int,
+        start_month: int = 1,
+        end_month: int = 12,
+        only_jra: bool = False
+    ) -> List[str]:
+
+    URL = "https://db.netkeiba.com/?pid=race_search_detail"
+
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('log-level=3')
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    wait = WebDriverWait(driver, 10)
+
+    driver.get(URL)
+    time.sleep(1)
+    wait.until(EC.presence_of_all_elements_located)
+
+    # 期間を選択
+    start_year_element = driver.find_element(by=By.NAME, value='start_year')
+    start_year_select = Select(start_year_element)
+    start_year_select.select_by_value(str(start_year))
+    start_mon_element = driver.find_element(by=By.NAME, value='start_mon')
+    start_mon_select = Select(start_mon_element)
+    start_mon_select.select_by_value(str(start_month))
+    end_year_element = driver.find_element(by=By.NAME, value='end_year')
+    end_year_select = Select(end_year_element)
+    end_year_select.select_by_value(str(end_year))
+    end_mon_element = driver.find_element(by=By.NAME, value='end_mon')
+    end_mon_select = Select(end_mon_element)
+    end_mon_select.select_by_value(str(end_month))
+
+    if only_jra:
+        # 中央競馬をチェック
+        for i in range(1, 11):
+            terms = driver.find_element(by=By.ID, value=("check_Jyo_" + str(i).zfill(2)))
+            terms.click()
+
+    # 表示件数を100件に変更
+    list_element = driver.find_element(by=By.NAME, value='list')
+    list_select = Select(list_element)
+    list_select.select_by_value('100')
+
+    # フォームを送信
+    frm = driver.find_element(by=By.CSS_SELECTOR, value="#db_search_detail_form > form")
+    frm.submit()
+    time.sleep(5)
+    wait.until(EC.presence_of_all_elements_located)
+
+    race_id_list = []
+
+    while True:
+        time.sleep(5)
+        wait.until(EC.presence_of_all_elements_located)
+        all_rows = driver.find_element(by=By.CLASS_NAME, value='race_table_01').find_elements(by=By.TAG_NAME, value='tr')
+
+        for row in range(1, len(all_rows)):
+            race_href = all_rows[row].find_elements(by=By.TAG_NAME, value='td')[4].find_element(by=By.TAG_NAME, value='a').get_attribute('href')
+            race_id = race_href.removeprefix('https://db.netkeiba.com/race/').removesuffix('/')
+            race_id_list.append(race_id)
+
+        try:
+            target = driver.find_elements(by=By.LINK_TEXT, value='次')[0]
+            driver.execute_script("arguments[0].click();", target)
+        except IndexError:
+            break
+
+    # ドライバーの終了
+    driver.close()
+    driver.quit()
 
     return race_id_list
 
