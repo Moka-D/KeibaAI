@@ -6,7 +6,7 @@ import re
 from typing import Dict, List
 from common import InvalidArgument, get_environment
 from dbapi import DBManager
-from utils import create_race_id_list, get_all_race_id
+from utils import create_race_id_list, get_all_race_id, judge_region
 from scraping import scrape_horse_peds, scrape_race_info
 if get_environment() == 'Jupyter':
     from tqdm.notebook import tqdm
@@ -39,6 +39,9 @@ class Registar:
                 continue
 
             for race_id in tqdm(race_id_list):
+                if judge_region(race_id) == 'Harnes':
+                    continue
+
                 if not self._dbm.is_id_inserted('race_info', race_id):
                     race_info, results, payoff_table = scrape_race_info(race_id)
                     self.regist_race_info(race_id, race_info)
@@ -80,17 +83,21 @@ class Registar:
     def regist_race_info(self, race_id:str, race_info: Dict[str, str]):
         sql = 'INSERT INTO race_info VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
         race_date = int(dt.datetime.strptime(race_info['date'], '%Y/%m/%d').date().strftime('%Y%m%d'))
-        data = (race_id, race_info['title'], race_date, int(race_id[4:6]), int(race_id[6:8]),
-                int(race_id[8:10]), int(race_id[10:12]), int(race_info['course_dist']),
-                race_info['race_type'], race_info['turn'], race_info['ground_state'], race_info['weather'])
+        hold_no = pd.to_numeric(race_id[6:8], errors='coerce')
+        hold_day = pd.to_numeric(race_id[8:10], errors='coerce')
+        race_no = pd.to_numeric(race_id[10:12], errors='coerce')
+        data = (race_id, race_info['title'], race_date, race_id[4:6], hold_no,
+                hold_day, race_no, int(race_info['course_dist']),
+                race_info['race_type'], race_info['turn'],
+                race_info['ground_state'], race_info['weather'])
         self._dbm.insert_data(sql, data)
 
     def regist_result(self, race_id: str, results: pd.DataFrame):
-        sql = 'INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        sql = 'INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
         for _, row in results.iterrows():
             data = (race_id, row['馬番'], row['枠番'], row['着順'], row['horse_id'],
                     row['性齢'], row['斤量'], row['jockey_id'], row['タイム'], row['着差'],
-                    row['通過'], row['上り'], row['単勝'], row['人気'], row['馬体重'],
+                    row['time_index'], row['通過'], row['上り'], row['単勝'], row['人気'], row['馬体重'],
                     row['trainer_id'], row['馬主'], row['賞金（万円）'])
             self._dbm.insert_data(sql, data)
 

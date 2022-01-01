@@ -7,6 +7,7 @@ import re
 from bs4 import BeautifulSoup
 import time
 import numpy as np
+from utils import judge_region
 
 
 DATE_PATTERN = re.compile('\d{4}/\d{1,2}/\d{1,2}')
@@ -31,6 +32,10 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, str], pd.DataFrame, pd.Dat
     payoff_table : pandas.DataFrame
         払い戻し表
     """
+    region = judge_region(race_id)
+    if region == 'Harnes':
+        return {}, pd.DataFrame(), pd.DataFrame()
+
     time.sleep(1)
     url = 'https://db.sp.netkeiba.com/race/' + race_id
     df_list = pd.read_html(url)
@@ -112,15 +117,10 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, str], pd.DataFrame, pd.Dat
 
     # データ整形
     df.loc[df['タイム'].notnull(), 'タイム'] = df.loc[df['タイム'].notnull(), 'タイム'].map(lambda x: float(x.split(':')[0]) * 60.0 + float(x.split(':')[1]))
-    df['単勝'] = pd.to_numeric(df['単勝'], errors='coerce')
-    df['賞金（万円）'].fillna(0, inplace=True)
-
-    # トップとのタイム差
-    #df['タイム差'] = df['タイム'] - df['タイム'].min()
-    #df.loc[0, 'タイム差'] = df.loc[0, 'タイム'] - df.drop(0)['タイム'].min()
 
     # タイム指数の取得
-    result_df = df.merge(scrape_time_index(race_id), left_on='馬番', right_on='馬番', how='left')
+    is_nra = (region == 'NRA')
+    result_df = df.merge(scrape_time_index(race_id, is_nra), left_on='馬番', right_on='馬番', how='left')
 
     # payoff
     if len(df_list) >= 2:
@@ -283,23 +283,31 @@ def scrape_horse_results(horse_id: str) -> pd.DataFrame:
     return df.drop(['映像', '馬場指数', 'ﾀｲﾑ指数', '厩舎ｺﾒﾝﾄ', '備考'], axis=1)
 
 
-def scrape_time_index(race_id: str) -> pd.DataFrame:
+def scrape_time_index(race_id: str, is_nra: bool = False) -> pd.DataFrame:
     """出走各馬のタイム指数をスクレイピングで取得する
 
     Parameters
     ----------
     race_id : str
         レースID
+    is_nra : bool, default False
+        地方競馬かどうか
 
     Returns
     -------
     pd.DataFrame
         馬番とタイム指数をまとめたDataFrame
     """
+    if is_nra:
+        url_base = 'https://nar.sp.netkeiba.com/race/race_result.html?race_id='
+    else:
+        url_base = 'http://race.sp.netkeiba.com/?pid=race_result&race_id='
+    url = url_base + race_id
+
     time.sleep(1)
-    url = 'http://race.sp.netkeiba.com/?pid=race_result&race_id=' + race_id
     df_list = pd.read_html(url)
     df = df_list[0]
+
     if 'タイム' not in df.columns:
         df = df_list[1]
     try:

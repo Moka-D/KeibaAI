@@ -152,3 +152,18 @@ def split_data(df: pd.DataFrame, test_size: float = 0.3) -> Tuple[pd.DataFrame, 
     train = df.loc[train_id_list]
     test = df.loc[test_id_list]
     return train, test
+
+
+def judge_region(race_id: str):
+    place = race_id[4:6]
+    try:
+        place_id = int(place)
+    except ValueError:
+        return 'Overseas'
+
+    if place_id >= 1 and place_id <= 10:
+        return 'JRA'
+    elif place_id == 65:
+        return 'Harnes'
+    else:
+        return 'NRA'

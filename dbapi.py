@@ -3,7 +3,7 @@
 import os
 import glob
 import sqlite3
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Union
 import pandas as pd
 from common import InvalidArgument
 
@@ -16,6 +16,7 @@ class DBManager:
     db_filepath : str
         dbファイルへのパス
     """
+
     def __init__(self, db_filepath: str) -> None:
         # 存在しないdbファイルの場合は、各tableを作成する
         if not os.path.exists(db_filepath):
@@ -53,9 +54,14 @@ class DBManager:
         cur.close()
         return ret
 
-    def select_all_resutls(self) -> pd.DataFrame:
+    def select_resutls(self, where_list: List[str] = []) -> Union[pd.DataFrame, None]:
         sql = 'SELECT * FROM results INNER JOIN race_info USING(race_id)'
-        return pd.read_sql(sql, self._conn)
+        if where_list:
+            sql += ' WHERE '
+        try:
+            return pd.read_sql(sql, self._conn)
+        except sqlite3.Error as e:
+            print("sqlite3.Error occurred:", e.args[0])
 
     def select_payoffs(self) -> pd.DataFrame:
         sql = 'SELECT * FROM race_payoff'
@@ -81,7 +87,7 @@ class DBManager:
             cur.execute(sql, data)
             self._conn.commit()
         except sqlite3.Error as e:
-            print("slite3.Error occurred:", e.args[0])
+            print("sqlite3.Error occurred:", e.args[0])
             self._conn.rollback()
         finally:
             cur.close()

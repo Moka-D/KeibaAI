@@ -98,18 +98,57 @@ class Peds:
         self.data_e = df.astype('category')
 
 
-class DataProcessor:
-    def __init__(self) -> None:
-        self.data = pd.DataFrame()
+class HorseResults:
+    def __init__(self, result_df: pd.DataFrame) -> None:
+        self.data = result_df[['race_id', 'horse_id', 'date', 'place',
+                               'weather', 'race_no', 'horse_no',
+                               'arriving_order', 'ground', 'goal_time',
+                               'race_type', 'distance', 'ground', 'time_index',
+                               'last_three_furlong', 'prise']]
         self.data_p = pd.DataFrame()
-        self.data_m = pd.DataFrame()
-        self.data_pe = pd.DataFrame()
-        self.data_c = pd.DataFrame()
-        self.n_samples = 0
+        self.preprocesing()
+
+    @classmethod
+    def read_db(cls, db_path: str) -> 'Results':
+        dbm = DBManager(db_path)
+        df = dbm.select_resutls()
+        return cls(df)
+
+    def preprocesing(self) -> None:
+        df = self.data.copy()
+
+        df['prise'].fillna(0, inplace=True)
+
+        # 何頭立てか
+        df = df.merge(df.groupby(['race_id']).size().rename('horse_num'), left_index=True, right_index=True, how='left')
+
+        # 何月開催か
+        df['month'] = df['date'].map(lambda x: (x % 100000000) // 1000000)
+
+        # 型変換
+        df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
+
+        # トップとのタイム差
+        df = df.merge(df.groupby(level=0)['goal_time'].min().rename('top_time'), left_index=True, right_index=True, how='left')
+        df['time_diff'] = df['goal_time'] - df['top_time']
+
+        def corner(x, n):
+            if type(x) != str:
+                return x
+            elif n == 4:
+                return int(re.findall(r'\d+', x)[-1])
+            elif n == 1:
+                return int(re.findall(r'\d+', x)[0])
+
+        # 通過順
+        df['first_corner'] = df['corner_pass'].map(lambda x: corner(x, 1))
+        df['last_corner'] = df['corner_pass'].map(lambda x: corner(x, 4))
+
+        self.data_p = df
 
     def average(self, horse_id_list: List[str], date: dt.datetime, n_samples: Union[int, str] = 'all'):
         ave_target_cols = [
-            'arriving_order', 'distance', 'time_diff', 'last_three_furlong',
+            'arriving_order', 'distance', 'time_index', 'last_three_furlong',
             'first_corner', 'last_corner', 'prise'
         ]
 
@@ -133,19 +172,14 @@ class DataProcessor:
         target_df = target_df.set_index('horse_id')
         filtered_df = target_df[target_df['date'] < date].sort_values('date', ascending=False).groupby(level=0).head(n_samples)
 
-        #average_5R = self.average(target_df, date, 5)
-        #average_9R = self.average(target_df, date, 9)
-        #average_df = pd.concat([average_5R, average_9R], axis=1)
-
         pre_target_cols = [
             'place_id', 'weather', 'race_no', 'horse_num', 'horse_no',
-            'arriving_order', 'race_type','distance', 'ground', 'goal_time',
-            'time_diff', 'last_three_furlong', 'first_corner', 'last_corner',
+            'arriving_order', 'race_type', 'distance', 'ground', 'goal_time',
+            'time_index', 'last_three_furlong', 'first_corner', 'last_corner',
             'prise'
         ]
 
         p_grouped_data = filtered_df.groupby(level=0)[pre_target_cols]
-        #p_data = average_df.copy()
         p_data = pd.DataFrame()
         for n in range(n_samples):
             pn_data = p_grouped_data.nth(n).add_prefix('p{}_'.format(n + 1))
@@ -153,16 +187,37 @@ class DataProcessor:
 
         return p_data
 
-    def merge(self, results: pd.DataFrame, date: dt.datetime, n_samples: Union[int, str] = 'all') -> pd.DataFrame:
+    def merge_average(self, results: pd.DataFrame, date: dt.datetime, n_samples: Union[int, str] = 'all') -> pd.DataFrame:
         df = results[results['date'] == date]
         horse_id_list = df['horse_id']
         merged_df = df.merge(self.average(horse_id_list, date, n_samples), left_on='horse_id', right_index=True, how='left')
         return merged_df
 
+    def merge_pre_results(self, results: pd.DataFrame, date: dt.datetime, n_samples: Union[int, str] = 'all') -> pd.DataFrame:
+        df = results[results['date'] == date]
+        horse_id_list = df['horse_id']
+        merged_df = df.merge(self.concat_old_results(horse_id_list, date, n_samples), left_on='horse_id', right_index=True, how='left')
+        return merged_df
+
     def merge_all(self, results: pd.DataFrame, n_samples: Union[int, str] = 'all') -> pd.DataFrame:
         date_list = results['date'].unique()
-        merged_df = pd.concat([self.merge(results, date, n_samples) for date in tqdm(date_list)])
+        merged_df = pd.concat([self.merge_average(results, date, n_samples) for date in tqdm(date_list)])
         return merged_df
+
+
+class DataProcessor:
+    def __init__(self) -> None:
+        self.data = pd.DataFrame()
+        self.data_p = pd.DataFrame()
+        self.data_m = pd.DataFrame()
+        self.data_pe = pd.DataFrame()
+        self.data_c = pd.DataFrame()
+
+    def merge_old_results(self, horse_results: HorseResults, n_samples_list: List[Union[int, str]] = [5, 9, 'all']) -> None:
+        df = self.data_p.copy()
+        for n_samples in n_samples_list:
+            df = horse_results.merge_all(df, n_samples)
+        self.data_m = df
 
     def merge_peds(self, peds: Peds):
         self.data_pe = self.data_m.merge(peds.data_e, left_on='horse_id', right_index=True, how='left')
@@ -171,7 +226,14 @@ class DataProcessor:
         if len(self.no_peds) > 0:
             warnings.warn('WARNING: scrape peds at horse_id_list "no_peds"')
 
-    def process_categorical(self, le_horse: LabelEncoder, le_jockey: LabelEncoder, results_m: pd.DataFrame):
+    def process_categorical(
+            self,
+            le_horse: LabelEncoder,
+            le_jockey: LabelEncoder,
+            le_trainer: LabelEncoder,
+            results_m: pd.DataFrame
+        ) -> None:
+
         df = self.data_pe.copy()
 
         mask_horse = df['horse_id'].isin(le_horse.classes_)
@@ -186,31 +248,27 @@ class DataProcessor:
         df['jockey_id'] = le_jockey.transform(df['jockey_id'])
         df['jockey_id'] = df['jockey_id'].astype('category')
 
-        """
-        category_cols = ['weather', 'ground', 'race_type']
-        for c_col in category_cols:
-            target_cols = [c_col]
-            target_cols.extend(['p{}_{}'.format(n, c_col) for n in range(1, self.n_samples + 1)])
-            values_list = list(set(itertools.chain.from_iterable(results_m[target_cols].fillna('Na').values)))
-            le = LabelEncoder().fit(values_list)
-            for t_col in target_cols:
-                df[t_col] = le.transform(df[t_col].fillna('Na'))
-                df[t_col] = df[t_col].astype('category')
-        """
+        mask_trainer = df['trainer_id'].isin(le_trainer.classes_)
+        new_trainer_id = df['trainer_id'].mask(mask_trainer).dropna().unique()
+        le_trainer.classes_ = np.concatenate([le_trainer.classes_, new_trainer_id])
+        df['trainer_id'] = le_trainer.transform(df['trainer_id'])
+        df['trainer_id'] = df['trainer_id'].astype('category')
 
-        df['weather'] = results_m
+        df['weather'] = df['weather'].map(encode_weather)
+        df['weather'] = df['weather'].astype('category')
 
-        weather = results_m['weather'].unique()
-        ground = results_m['ground'].unique()
-        race_type = results_m['race_type'].unique()
+        df['ground'] = df['ground'].map(encode_ground)
+        df['ground'] = df['ground'].astype('category')
+
+        df['race_type'] = df['race_type'].map(encode_race_type)
+        df['race_type'] = df['race_type'].astype('category')
+
+        df['turn'] = df['turn'].map(encode_turn)
+        df['turn'] = df['turn'].astype('category')
+
         sexes = results_m['sex'].unique()
-        turns = results_m['turn'].unique()
-        df['weather'] = pd.Categorical(df['weather'], weather)
-        df['ground'] = pd.Categorical(df['ground'], ground)
-        df['race_type'] = pd.Categorical(df['race_type'], race_type)
         df['sex'] = pd.Categorical(df['sex'], sexes)
-        df['turn'] = pd.Categorical(df['turn'], turns)
-        df = pd.get_dummies(df, columns=['weather', 'ground', 'race_type', 'sex', 'turn'])
+        df = pd.get_dummies(df, columns=['sex'])
 
         self.data_c = df
 
@@ -225,28 +283,28 @@ class Results(DataProcessor):
     def __init__(self, result_df: pd.DataFrame) -> None:
         super().__init__()
         self.data = result_df
+        self.le_horse = None
+        self.le_jockey = None
+        self.le_trainer = None
+        self.preprocesing()
 
     @classmethod
-    def read_db(cls, db_path: str) -> 'Results':
+    def read_db(
+            cls,
+            db_path: str,
+            start_date: int,
+            race_type: str = 'all',
+            jra_only: bool = True
+        ) -> 'Results':
         dbm = DBManager(db_path)
-        df = dbm.select_all_resutls()
+        where: List[str] = []
+        df = dbm.select_resutls(where)
         return cls(df)
 
-    def preprocesing(self, flat_only: bool = True) -> None:
-        """スクレイプしたレース結果データの前処理
-
-        Parameters
-        ----------
-        flat_only : bool, optional
-            平地レースのみ, by default True
-        """
+    def preprocesing(self) -> None:
         df = self.data.copy()
 
         df.set_index('race_id', inplace=True)
-
-        if flat_only:
-            # 障害競走を除外
-            df = df[df['race_type'] != '障害']
 
         # 何頭立てか
         df = df.merge(df.groupby(level=0).size().rename('horse_num'), left_index=True, right_index=True, how='left')
@@ -275,53 +333,39 @@ class Results(DataProcessor):
 
         # 型変換
         df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
-        df['goal_time'] = df['goal_time'].map(lambda x: float(x.split(':')[0]) * 60.0 + float(x.split(':')[1]))
 
-        # 優勝賞金
-        df = df.merge(df.groupby(level=0)['prise'].max().rename('win_prise'), left_index=True, right_index=True, how='left')
-
-        # トップとのタイム差
-        df = df.merge(df.groupby(level=0)['goal_time'].min().rename('top_time'), left_index=True, right_index=True, how='left')
-        df['time_diff'] = df['goal_time'] - df['top_time']
-
-        def corner(x, n):
-            if type(x) != str:
-                return x
-            elif n == 4:
-                return int(re.findall(r'\d+', x)[-1])
-            elif n == 1:
-                return int(re.findall(r'\d+', x)[0])
-
-        # 通過順
-        df['first_corner'] = df['corner_pass'].map(lambda x: corner(x, 1))
-        df['last_corner'] = df['corner_pass'].map(lambda x: corner(x, 4))
+        # 賞金
+        df['prise'].fillna(0, inplace=True)
+        df = df.merge(df.groupby(level=0)['prise'].max().rename('win_prise'),
+                      left_index=True, right_index=True, how='left')
 
         # 不要列削除
-        df.drop(['sex_age', 'horse_weight', 'win_odds', 'popular_order', 'corner_pass', 'owner_name', 'margin_length', 'race_title', 'top_time', 'trainer_id'], axis=1, inplace=True)
+        df.drop(['sex_age', 'horse_weight', 'win_odds', 'popular_order',
+                 'corner_pass', 'owner_name', 'margin_length', 'race_title',
+                 'arrivinf_order', 'goal_time', 'last_three_furlong',
+                 'time_index', 'prise'],
+                axis=1, inplace=True)
 
         self.data_p = df
-
-    def merge_old_results(self, start_date: int = 20180101, n_samples: int = 3) -> None:
-        df = self.data_p.copy()
-        df = df[df['date'] >= pd.to_datetime(start_date, format='%Y%m%d')]
-        self.data_m = self.merge_all(df, n_samples)
 
     def process_categorical(self) -> None:
         self.le_horse = LabelEncoder().fit(self.data_pe['horse_id'])
         self.le_jockey = LabelEncoder().fit(self.data_pe['jockey_id'])
-        super().process_categorical(self.le_horse, self.le_jockey, self.data_pe)
+        self.le_trainer = LabelEncoder().fit(self.data_pe['trainer_id'])
+        super().process_categorical(self.le_horse, self.le_jockey, self.le_jockey, self.data_pe)
 
     def get_final_data(self, drop_nan: bool = True) -> pd.DataFrame:
         df = self.data_c.copy()
         if drop_nan:
             df = df.dropna()
-        return df.drop(['arriving_order', 'goal_time', 'last_three_furlong', 'time_diff', 'first_corner', 'last_corner', 'prise'], axis=1)
+        return df.drop(['horse_id'], axis=1)
 
 
 class RaceCard(DataProcessor):
     def __init__(self, df: pd.DataFrame) -> None:
         super().__init__()
         self.data = df
+        self.preprocess()
 
     @classmethod
     def scrape(cls, race_id_list: List[str], date: int) -> 'RaceCard':
@@ -340,22 +384,7 @@ class RaceCard(DataProcessor):
         return cls(data)
 
     def preprocess(self) -> None:
-        """スクレイプした出馬表データを処理する関数
-
-        Parameters
-        ----------
-        result_df : pandas.DataFrame
-            出馬表DataFrame
-        race_id : str
-            レースID
-
-        Returns
-        -------
-        df : pandas.DataFrame
-            処理後出馬表DataFrame
-        """
         df = self.data.copy()
-
 
         # 性齢
         df['sex'] = df['性齢'].map(lambda x: str(x)[0])
@@ -377,12 +406,11 @@ class RaceCard(DataProcessor):
         # 列名変更
         df.rename(columns={'枠':'frame_no', '馬番':'horse_no', '斤量':'impost'}, inplace=True)
 
-        self.data_p = df[['horse_no', 'frame_no', 'horse_id', 'impost',
-                          'jockey_id','date', 'place_id', 'hold_no',
+        self.data_p = df[['horse_no', 'frame_no', 'impost', 'jockey_id',
+                          'trainer_id', 'date', 'place_id', 'hold_no',
                           'hold_day', 'race_no', 'distance', 'race_type',
                           'turn', 'ground', 'weather', 'horse_num', 'sex',
                           'age', 'weight', 'weight_change', 'win_prise']]
 
-    def merge_results(self, results: Results, n_samples: int = 2) -> None:
-        df = self.data_p.copy()
-        self.data_m = results.merge_all(df, n_samples)
+    def process_categorical(self, results: Results) -> None:
+        super().process_categorical(results.le_horse, self.le_jockey, self.le_trainer, results.data_pe)
