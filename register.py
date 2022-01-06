@@ -1,9 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import sys
 import datetime as dt
 import pandas as pd
 import re
-from typing import Dict, List
+from typing import Dict, List, Set
 from common import InvalidArgument, get_environment
 from dbapi import DBManager
 from utils import create_race_id_list, get_all_race_id, judge_region
@@ -18,40 +19,54 @@ DB_FILEPATH: str = "D:\\Masatoshi\\Work\\db\\keiba.db"
 
 
 class Registar:
-    def __init__(self, db_path: str = DB_FILEPATH) -> None:
+    def __init__(self, db_path: str) -> None:
         self._dbm = DBManager(db_path)
 
-    def regist_race_results(self, year_list: List[int]) -> None:
+    def regist_race_results(self, race_id_list: List[str]) -> Set[str]:
         """
         レース結果をDBに登録する関数
 
         Parameters
         ----------
-        year_list : list[int]
-            年のリスト
+        race_id_list : list[str]
+            レースIDのリスト
         """
-        for year in year_list:
-            try:
-                #race_id_list = create_race_id_list(year)
-                race_id_list = get_all_race_id(year, year)
-            except InvalidArgument as e:
-                print(e)
+        horse_id_set = set()
+
+        for race_id in tqdm(race_id_list):
+            if judge_region(race_id) == 'Harnes':
                 continue
 
-            for race_id in tqdm(race_id_list):
-                if judge_region(race_id) == 'Harnes':
+            if not self._dbm.is_id_inserted('race_info', race_id):
+                try:
+                    race_info, results, payoff_table = scrape_race_info(race_id)
+                except ValueError:
                     continue
 
-                if not self._dbm.is_id_inserted('race_info', race_id):
-                    race_info, results, payoff_table = scrape_race_info(race_id)
-                    self.regist_race_info(race_id, race_info)
-                    self.regist_horse(dict(zip(results['horse_id'], results['馬名'])))
-                    self.regist_jockey(dict(zip(results['jockey_id'], results['騎手'])))
-                    self.regist_trainer(dict(zip(results['trainer_id'], results['調教師'])))
-                    self.regist_result(race_id, results)
-                    self.regist_payoff(race_id, payoff_table)
+                self.regist_race_info(race_id, race_info)
+                self.regist_horse(dict(zip(results['horse_id'], results['馬名'])))
+                self.regist_jockey(dict(zip(results['jockey_id'], results['騎手'])))
+                self.regist_trainer(dict(zip(results['trainer_id'], results['調教師'])))
+                self.regist_result(race_id, results)
+                self.regist_payoff(race_id, payoff_table)
 
+                horse_id_set |= set(results['horse_id'].to_list())
+
+        return horse_id_set
+
+    def regist_per_year(self, year_list: List[int]) -> Set[str]:
+        horse_id_set = set()
+        for year in year_list:
+            try:
+                race_id_list = create_race_id_list(year)
+            except InvalidArgument as e:
+                print(e)
+                break
+
+            horse_id_set |= self.regist_race_results(race_id_list)
             print("Race data of {} has been inserted successfully.".format(year))
+
+        return horse_id_set
 
     def regist_horse(self, horse_dict: Dict[str, str]):
         for id, name in horse_dict.items():
@@ -109,3 +124,23 @@ class Registar:
         for _, row in payoff_tmp.iterrows():
             data = (race_id, row[0], row[1], row[2], row[3])
             self._dbm.insert_data(sql, data)
+
+
+def main(args):
+    year_list = []
+    if len(args) >= 2:
+        for i in range(1, len(args)):
+            if args[i].isdigit():
+                year_list.append(int(args[i]))
+            else:
+                print('Argument is not digit')
+                return
+        reg = Registar("\\\\mokad-pi-omv\\public\\99_work\\keiba.db")
+        horse_id_set = reg.regist_per_year(year_list)
+        print(horse_id_set)
+    else:
+        print('Arguments are too short')
+
+
+if __name__ == '__main__':
+    main(sys.argv)
