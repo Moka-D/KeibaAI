@@ -1,6 +1,7 @@
-CREATE TABLE "horse_results" (
+CREATE TABLE if not exists "horse_results" (
 	"horse_id"	TEXT NOT NULL,
-	"date"	INTEGER NOT NULL,
+	"race_id"	TEXT,
+	"date"	INTEGER,
 	"place"	TEXT,
 	"weather"	TEXT,
 	"race_no"	INTEGER,
@@ -9,21 +10,19 @@ CREATE TABLE "horse_results" (
 	"frame_no"	INTEGER,
 	"horse_no"	INTEGER,
 	"win_odds"	REAL,
-	"popular_order"	INTEGER,
-	"arriving_order"	TEXT,
+	"pupularity"	INTEGER,
+	"arriving_order"	NUMERIC,
 	"jockey_id"	TEXT,
 	"impost"	REAL,
-	"race_type"	TEXT,
-	"distance"	INTEGER,
+	"type_dist"	TEXT,
 	"ground"	TEXT,
 	"goal_time"	TEXT,
 	"time_diff"	REAL,
 	"corner_pass"	TEXT,
 	"pase"	TEXT,
-	"last_three_furlong"	TEXT,
+	"last_three_furlong"	REAL,
 	"horse_weight"	TEXT,
 	"prise"	REAL,
-	PRIMARY KEY("horse_id","date"),
 	FOREIGN KEY("horse_id") REFERENCES "horse"("id"),
-	FOREIGN KEY("jockey_id") REFERENCES "jockey"("id")
+	PRIMARY KEY("horse_id","race_id")
 )

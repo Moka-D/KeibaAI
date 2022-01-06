@@ -32,15 +32,11 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, Union[str, int]], pd.DataF
     payoff_table : pandas.DataFrame
         払い戻し表
     """
-    region = judge_region(race_id)
-    if region == 'Harnes':
-        return {}, pd.DataFrame(), pd.DataFrame()
-
     time.sleep(1)
     url = 'https://db.sp.netkeiba.com/race/' + race_id
     df_list = pd.read_html(url)
     df = df_list[0]
-    df = df.drop(['着差', 'タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
+    df = df.drop(['タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
 
     html = requests.get(url)
     html.encoding = 'EUC-JP'
@@ -86,11 +82,6 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, Union[str, int]], pd.DataF
     if 'weather' not in info_dict:
         info_dict['weather'] = None
 
-    if region == 'Overseas':
-        info_dict['horse_num'] = None
-    else:
-        info_dict['horse_num'] = len(df)
-
     # date
     date_text = soup.find('span', attrs={'class': 'Race_Date'}).text
     info_dict['date'] = re.search(DATE_PATTERN, date_text).group()
@@ -120,8 +111,7 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, Union[str, int]], pd.DataF
     df['jockey_id'] = jockey_id_list
     df['trainer_id'] = trainer_id_list
 
-    # データ整形
-    df.loc[df['タイム'].notnull(), 'タイム'] = df.loc[df['タイム'].notnull(), 'タイム'].map(lambda x: float(x.split(':')[0]) * 60.0 + float(x.split(':')[1]))
+    df['賞金（万円）'].fillna(0, inplace=True)
 
     # payoff
     if len(df_list) >= 2:

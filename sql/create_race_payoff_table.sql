@@ -1,5 +1,5 @@
 CREATE TABLE if not exists "race_payoff" (
-	"race_id"		INTEGER NOT NULL,
+	"race_id"		TEXT NOT NULL,
 	"ticket_type"	TEXT NOT NULL,
 	"pattern"		TEXT NOT NULL,
 	"payoff"		INTEGER,

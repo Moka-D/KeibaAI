@@ -4,9 +4,10 @@ import datetime as dt
 import pandas as pd
 import re
 from typing import Dict, List
+
 from common import InvalidArgument, get_environment
 from dbapi import DBManager
-from utils import create_race_id_list, get_all_race_id, judge_region
+from utils import create_race_id_list, get_all_race_id
 from scraping import scrape_horse_peds, scrape_race_info
 if get_environment() == 'Jupyter':
     from tqdm.notebook import tqdm
@@ -14,14 +15,14 @@ else:
     from tqdm import tqdm
 
 
-DB_FILEPATH: str = "D:\\Masatoshi\\Work\\db\\keiba.db"
+DB_FILEPATH: str = "D:\\Masatoshi\\Work\\db\\keiba_2.db"
 
 
 class Registar:
     def __init__(self, db_path: str = DB_FILEPATH) -> None:
         self._dbm = DBManager(db_path)
 
-    def regist_race_results(self, year_list: List[int]) -> None:
+    def regist_race_results(self, year_list: List[int]):
         """
         レース結果をDBに登録する関数
 
@@ -32,18 +33,19 @@ class Registar:
         """
         for year in year_list:
             try:
-                #race_id_list = create_race_id_list(year)
-                race_id_list = get_all_race_id(year, year)
+                race_id_list = create_race_id_list(year)
+                #race_id_list = get_all_race_id(year, year)
             except InvalidArgument as e:
                 print(e)
                 continue
 
             for race_id in tqdm(race_id_list):
-                if judge_region(race_id) == 'Harnes':
-                    continue
-
                 if not self._dbm.is_id_inserted('race_info', race_id):
-                    race_info, results, payoff_table = scrape_race_info(race_id)
+                    try:
+                        race_info, results, payoff_table = scrape_race_info(race_id)
+                    except ValueError:
+                        continue
+
                     self.regist_race_info(race_id, race_info)
                     self.regist_horse(dict(zip(results['horse_id'], results['馬名'])))
                     self.regist_jockey(dict(zip(results['jockey_id'], results['騎手'])))
@@ -106,6 +108,16 @@ class Registar:
         payoff_tmp[2] = payoff_tmp[2].map(lambda x: re.findall(r'\d+,*\d+', x)[0]).str.replace(',', '').astype(int)
         payoff_tmp[3] = payoff_tmp[3].map(lambda x: re.findall(r'\d+', x)[0]).astype(int)
         sql = 'INSERT INTO race_payoff VALUES (?,?,?,?,?)'
-        for _, row in payoff_tmp.iterrows():
+        for row in payoff_tmp.itertuples():
             data = (race_id, row[0], row[1], row[2], row[3])
             self._dbm.insert_data(sql, data)
+
+
+def main():
+    year_list = [2021]
+    reg = Registar('\\\\MOKAD-PI-OMV\\public\\99_work\\keiba.db')
+    reg.regist_race_results(year_list)
+
+
+if __name__ == '__main__':
+    main()

@@ -325,7 +325,7 @@ class Results(DataProcessor):
 
         # 性齢
         df['sex'] = df['sex_age'].map(lambda x: str(x)[0])
-        df['age'] = df['sex_age'].map(lambda x: str(x)[1]).astype(int)
+        df['age'] = df['sex_age'].map(lambda x: re.findall(r'\d+', x)[0]).astype(int)
 
         # 馬体重
         df['weigth'] = df['horse_weight'].str.split('(', expand=True)[0].astype(int)
