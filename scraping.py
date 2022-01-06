@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 import pandas as pd
 import requests
 import re
@@ -15,7 +15,7 @@ GROUND_STATE_LIST = ['良', '稍', '重', '不']
 WEATHER_LIST = ['曇', '晴', '雨', '小雨', '小雪', '雪']
 
 
-def scrape_race_info(race_id: str) -> Tuple[Dict[str, str], pd.DataFrame, pd.DataFrame]:
+def scrape_race_info(race_id: str) -> Tuple[Dict[str, Union[str, int]], pd.DataFrame, pd.DataFrame]:
     """レース結果をスクレイピングする関数
 
     Parameters
@@ -25,7 +25,7 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, str], pd.DataFrame, pd.Dat
 
     Returns
     -------
-    info_dict : dict[str, str]
+    info_dict : dict[str, str or int]
         レース情報
     result_df : pandas.DataFrame
         出走馬一覧とレースの結果
@@ -86,6 +86,11 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, str], pd.DataFrame, pd.Dat
     if 'weather' not in info_dict:
         info_dict['weather'] = None
 
+    if region == 'Overseas':
+        info_dict['horse_num'] = None
+    else:
+        info_dict['horse_num'] = len(df)
+
     # date
     date_text = soup.find('span', attrs={'class': 'Race_Date'}).text
     info_dict['date'] = re.search(DATE_PATTERN, date_text).group()
@@ -118,17 +123,13 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, str], pd.DataFrame, pd.Dat
     # データ整形
     df.loc[df['タイム'].notnull(), 'タイム'] = df.loc[df['タイム'].notnull(), 'タイム'].map(lambda x: float(x.split(':')[0]) * 60.0 + float(x.split(':')[1]))
 
-    # タイム指数の取得
-    is_nra = (region == 'NRA')
-    result_df = df.merge(scrape_time_index(race_id, is_nra), left_on='馬番', right_on='馬番', how='left')
-
     # payoff
     if len(df_list) >= 2:
         payoff_table = df_list[1]
     else:
         payoff_table = pd.DataFrame()
 
-    return info_dict, result_df, payoff_table
+    return info_dict, df, payoff_table
 
 
 def scrape_horse_peds(horse_id: str) -> pd.DataFrame:
@@ -281,37 +282,3 @@ def scrape_horse_results(horse_id: str) -> pd.DataFrame:
     df['jockey_id'] = jockey_id_list
 
     return df.drop(['映像', '馬場指数', 'ﾀｲﾑ指数', '厩舎ｺﾒﾝﾄ', '備考'], axis=1)
-
-
-def scrape_time_index(race_id: str, is_nra: bool = False) -> pd.DataFrame:
-    """出走各馬のタイム指数をスクレイピングで取得する
-
-    Parameters
-    ----------
-    race_id : str
-        レースID
-    is_nra : bool, default False
-        地方競馬かどうか
-
-    Returns
-    -------
-    pd.DataFrame
-        馬番とタイム指数をまとめたDataFrame
-    """
-    if is_nra:
-        url_base = 'https://nar.sp.netkeiba.com/race/race_result.html?race_id='
-    else:
-        url_base = 'http://race.sp.netkeiba.com/?pid=race_result&race_id='
-    url = url_base + race_id
-
-    time.sleep(1)
-    df_list = pd.read_html(url)
-    df = df_list[0]
-
-    if 'タイム' not in df.columns:
-        df = df_list[1]
-    try:
-        df['タイム指数'] = df['タイム'].fillna('(0.0)').map(lambda x: float(x.split(' ')[-1][1:-1]))
-    except ValueError:
-        df['タイム指数'] = np.nan
-    return df[['馬番', 'タイム指数']]

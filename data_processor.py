@@ -103,7 +103,7 @@ class HorseResults:
         self.data = result_df[['race_id', 'horse_id', 'date', 'place',
                                'weather', 'race_no', 'horse_no',
                                'arriving_order', 'ground', 'goal_time',
-                               'race_type', 'distance', 'ground', 'time_index',
+                               'race_type', 'distance', 'ground', 'time_diff',
                                'last_three_furlong', 'prise']]
         self.data_p = pd.DataFrame()
         self.preprocesing()
@@ -148,7 +148,7 @@ class HorseResults:
 
     def average(self, horse_id_list: List[str], date: dt.datetime, n_samples: Union[int, str] = 'all'):
         ave_target_cols = [
-            'arriving_order', 'distance', 'time_index', 'last_three_furlong',
+            'arriving_order', 'distance', 'time_diff', 'last_three_furlong',
             'first_corner', 'last_corner', 'prise'
         ]
 
@@ -342,8 +342,7 @@ class Results(DataProcessor):
         # 不要列削除
         df.drop(['sex_age', 'horse_weight', 'win_odds', 'popular_order',
                  'corner_pass', 'owner_name', 'margin_length', 'race_title',
-                 'arrivinf_order', 'goal_time', 'last_three_furlong',
-                 'time_index', 'prise'],
+                 'arrivinf_order', 'goal_time', 'last_three_furlong', 'prise'],
                 axis=1, inplace=True)
 
         self.data_p = df

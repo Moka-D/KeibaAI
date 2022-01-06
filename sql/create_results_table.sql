@@ -9,7 +9,6 @@ CREATE TABLE if not exists "results" (
 	"jockey_id"				TEXT,
 	"goal_time"				REAL,
 	"margin_length"			TEXT,
-	"time_index"			REAL,
 	"corner_pass"			TEXT,
 	"last_three_furlong"	REAL,
 	"win_odds"				REAL,

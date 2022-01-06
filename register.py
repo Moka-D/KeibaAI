@@ -93,11 +93,11 @@ class Registar:
         self._dbm.insert_data(sql, data)
 
     def regist_result(self, race_id: str, results: pd.DataFrame):
-        sql = 'INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        sql = 'INSERT INTO results VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
         for _, row in results.iterrows():
             data = (race_id, row['馬番'], row['枠番'], row['着順'], row['horse_id'],
                     row['性齢'], row['斤量'], row['jockey_id'], row['タイム'], row['着差'],
-                    row['time_index'], row['通過'], row['上り'], row['単勝'], row['人気'], row['馬体重'],
+                    row['通過'], row['上り'], row['単勝'], row['人気'], row['馬体重'],
                     row['trainer_id'], row['馬主'], row['賞金（万円）'])
             self._dbm.insert_data(sql, data)
 
