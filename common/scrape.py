@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 from typing import Dict, Tuple, Union
 import pandas as pd
@@ -6,7 +5,6 @@ import requests
 import re
 from bs4 import BeautifulSoup
 import time
-from utils import judge_region
 
 
 DATE_PATTERN = re.compile('\d{4}/\d{1,2}/\d{1,2}')

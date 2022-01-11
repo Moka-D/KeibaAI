@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 import sys
 import datetime as dt
@@ -9,7 +8,7 @@ from typing import Dict, List
 from common import InvalidArgument, get_environment
 from dbapi import DBManager
 from utils import create_race_id_list, judge_region
-from scraping import scrape_horse_peds, scrape_horse_results, scrape_race_info
+from scrape import scrape_horse_peds, scrape_horse_results, scrape_race_info
 if get_environment() == 'Jupyter':
     from tqdm.notebook import tqdm
 else:

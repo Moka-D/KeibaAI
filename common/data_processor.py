@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 import datetime as dt
 import re
@@ -13,7 +12,7 @@ else:
 from sklearn.preprocessing import LabelEncoder
 import numpy as np
 from dbapi import DBManager
-from scraping import scrape_race_card
+from scrape import scrape_race_card
 import itertools
 
 
