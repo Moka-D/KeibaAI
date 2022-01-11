@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
+import os
+import sys
+sys.path.append(os.pardir)
 import datetime as dt
 import re
 from typing import List, Tuple, Union
 import warnings
 import pandas as pd
-from common import get_environment
+import itertools
+from common.utils import get_environment
+from sklearn.preprocessing import LabelEncoder
+import numpy as np
 if get_environment() == 'Jupyter':
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
-from sklearn.preprocessing import LabelEncoder
-import numpy as np
-from dbapi import DBManager
-from scrape import scrape_race_card
-import itertools
+from common.dbapi import DBManager
+from common.scrape import scrape_race_card
 
 
 def split_data(df: pd.DataFrame, test_size: float = 0.3) -> Tuple[pd.DataFrame, pd.DataFrame]:

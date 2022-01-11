@@ -1,13 +1,23 @@
 # -*- coding: utf-8 -*-
-from typing import Dict, Tuple, Union
+import sys
+import os
+sys.path.append(os.pardir)
+from typing import Dict, Tuple, Union, List
 import pandas as pd
 import requests
 import re
 from bs4 import BeautifulSoup
 import time
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from common.utils import DATE_PATTERN
 
 
-DATE_PATTERN = re.compile('\d{4}/\d{1,2}/\d{1,2}')
 GROUND_STATE_LIST = ['良', '稍', '重', '不']
 WEATHER_LIST = ['曇', '晴', '雨', '小雨', '小雪', '雪']
 
@@ -279,3 +289,114 @@ def scrape_horse_results(horse_id: str, with_jockey_id: bool = True) -> pd.DataF
         df.loc[df['騎手'].notna(), 'jockey_id'] = jockey_id_list
 
     return df
+
+
+def scrape_period_race_id_list(
+        start_year: int,
+        end_year: int,
+        start_month: int = 1,
+        end_month: int = 12,
+        only_jra: bool = True
+    ) -> List[str]:
+
+    # ドライバーの生成
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('log-level=3')
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    wait = WebDriverWait(driver, 10)
+
+    driver.get("https://db.netkeiba.com/?pid=race_search_detail")
+    time.sleep(1)
+    wait.until(EC.presence_of_all_elements_located)
+
+    # 期間を選択
+    start_year_element = driver.find_element(by=By.NAME, value='start_year')
+    start_year_select = Select(start_year_element)
+    start_year_select.select_by_value(str(start_year))
+    start_mon_element = driver.find_element(by=By.NAME, value='start_mon')
+    start_mon_select = Select(start_mon_element)
+    start_mon_select.select_by_value(str(start_month))
+    end_year_element = driver.find_element(by=By.NAME, value='end_year')
+    end_year_select = Select(end_year_element)
+    end_year_select.select_by_value(str(end_year))
+    end_mon_element = driver.find_element(by=By.NAME, value='end_mon')
+    end_mon_select = Select(end_mon_element)
+    end_mon_select.select_by_value(str(end_month))
+
+    if only_jra:
+        # 中央競馬をチェック
+        for i in range(1, 11):
+            terms = driver.find_element(by=By.ID, value=("check_Jyo_" + str(i).zfill(2)))
+            terms.click()
+
+    # 表示件数を100件に変更
+    list_element = driver.find_element(by=By.NAME, value='list')
+    list_select = Select(list_element)
+    list_select.select_by_value('100')
+
+    # フォームを送信
+    frm = driver.find_element(by=By.CSS_SELECTOR, value="#db_search_detail_form > form")
+    frm.submit()
+    time.sleep(5)
+    wait.until(EC.presence_of_all_elements_located)
+
+    race_id_list = []
+
+    while True:
+        time.sleep(5)
+        wait.until(EC.presence_of_all_elements_located)
+        all_rows = driver.find_element(by=By.CLASS_NAME, value='race_table_01').find_elements(by=By.TAG_NAME, value='tr')
+
+        for row in range(1, len(all_rows)):
+            race_href = all_rows[row].find_elements(by=By.TAG_NAME, value='td')[4].find_element(by=By.TAG_NAME, value='a').get_attribute('href')
+            race_id = race_href.removeprefix('https://db.netkeiba.com/race/').removesuffix('/')
+            race_id_list.append(race_id)
+
+        try:
+            target = driver.find_elements(by=By.LINK_TEXT, value='次')[0]
+            driver.execute_script("arguments[0].click();", target)
+        except IndexError:
+            break
+
+    # ドライバーの終了
+    driver.close()
+    driver.quit()
+
+    return race_id_list
+
+
+def scrape_race_card_id_list(race_date: str) -> List[str]:
+
+    url = "https://race.netkeiba.com/top/race_list.html?kaisai_date=" + race_date
+
+    # ドライバーの生成
+    options = Options()
+    options.add_argument('--headless')
+    options.add_argument('log-level=3')
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    wait = WebDriverWait(driver, 10)
+
+    driver.get(url)
+    time.sleep(1)
+    wait.until(EC.presence_of_all_elements_located)
+
+    # レースIDの取得
+    soup = BeautifulSoup(driver.page_source, features='lxml')
+    elem_base = soup.find(id="RaceTopRace")
+    elems = elem_base.find_all("li", attrs={'class': 'RaceList_DataItem'})
+    race_id_list = []
+    for elem in elems:
+        a_tag = elem.find("a")
+        if a_tag:
+            href = a_tag.get('href')
+            match = re.findall("\/race\/result.html\?race_id=(.*)&rf=race_list", href)
+            if len(match) > 0:
+                race_id = match[0]
+                race_id_list.append(race_id)
+
+    # ドライバーの終了
+    driver.close()
+    driver.quit()
+
+    return race_id_list

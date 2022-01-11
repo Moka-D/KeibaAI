@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 import os
+import sys
+sys.path.append(os.pardir)
+import warnings
 import glob
+from typing import Any, List, Tuple, Union
 import sqlite3
 import numpy as np
-from typing import Any, List, Tuple, Union
 import pandas as pd
-from utils import InvalidArgument
-import warnings
+from common.utils import InvalidArgument
 
 
 class DBManager:
