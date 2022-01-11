@@ -79,6 +79,17 @@ def encode_turn(turn: str) -> int:
         return 0
 
 
+def encode_sex(sex: str) -> int:
+    if sex == '牡':
+        return 1
+    elif sex == '牝':
+        return 2
+    elif sex == 'セ':
+        return 3
+    else:
+        return 0
+
+
 class Peds:
     def __init__(self, peds: pd.DataFrame) -> None:
         self.data = peds

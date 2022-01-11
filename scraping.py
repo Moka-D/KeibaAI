@@ -6,7 +6,6 @@ import requests
 import re
 from bs4 import BeautifulSoup
 import time
-import numpy as np
 from utils import judge_region
 
 
@@ -34,9 +33,6 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, Union[str, int]], pd.DataF
     """
     time.sleep(1)
     url = 'https://db.sp.netkeiba.com/race/' + race_id
-    df_list = pd.read_html(url)
-    df = df_list[0]
-    df = df.drop(['タイム指数', '調教タイム', '厩舎コメント', '備考'], axis=1)
 
     html = requests.get(url)
     html.encoding = 'EUC-JP'
@@ -107,11 +103,15 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, Union[str, int]], pd.DataF
         trainer_id = a['href'].removeprefix('https://db.sp.netkeiba.com/trainer/').removesuffix('/')
         trainer_id_list.append(trainer_id)
 
+    df_list = pd.read_html(url)
+    df = df_list[0]
     df['horse_id'] = horse_id_list
     df['jockey_id'] = jockey_id_list
     df['trainer_id'] = trainer_id_list
 
     df['賞金（万円）'].fillna(0, inplace=True)
+
+    info_dict['horse_num'] = len(df)
 
     # payoff
     if len(df_list) >= 2:
@@ -239,7 +239,7 @@ def scrape_race_card(race_id: str, date: int) -> pd.DataFrame:
     return df
 
 
-def scrape_horse_results(horse_id: str) -> pd.DataFrame:
+def scrape_horse_results(horse_id: str, with_jockey_id: bool = True) -> pd.DataFrame:
     """馬の過去結果をスクレイピング
 
     Parameters
@@ -253,22 +253,31 @@ def scrape_horse_results(horse_id: str) -> pd.DataFrame:
         結果df
     """
     time.sleep(1)
-    url = 'https://db.netkeiba.com/horse/' + horse_id
-    html_df = pd.read_html(url)
-    df = html_df[3]
-    if df.columns[0] == '受賞歴':
-        df = html_df[4]
+    url = 'https://db.netkeiba.com/horse/result/' + horse_id
 
     html = requests.get(url)
     html.encoding = 'EUC-JP'
     soup = BeautifulSoup(html.text, 'html.parser')
     result_table = soup.find('table', attrs={'class': 'db_h_race_results nk_tb_common'})
 
-    jockey_a_list = result_table.find_all('a', attrs={'href': re.compile('/jockey/\d+/')})
-    jockey_id_list = []
-    for a in jockey_a_list:
-        jockey_id = re.findall(r'\d+', a['href'])
-        jockey_id_list.append(jockey_id[0])
-    df['jockey_id'] = jockey_id_list
+    race_a_list = result_table.find_all('a', attrs={'href': re.compile('^/race')})
+    race_id_list = []
+    for a in race_a_list:
+        href = a['href']
+        if not ('list' in href or 'sum' in href or 'movie' in href):
+            race_id_list.append(href.removeprefix('/race/').removesuffix('/'))
 
-    return df.drop(['映像', '馬場指数', 'ﾀｲﾑ指数', '厩舎ｺﾒﾝﾄ', '備考'], axis=1)
+    if with_jockey_id:
+        jockey_a_list = result_table.find_all('a', attrs={'href': re.compile('^/jockey')})
+        jockey_id_list = []
+        for a in jockey_a_list:
+            jockey_id = a['href'].removeprefix('/jockey/').removesuffix('/')
+            jockey_id_list.append(jockey_id)
+
+    df = pd.read_html(url)[0]
+
+    df.loc[df['レース名'].notna(), 'race_id'] = race_id_list
+    if with_jockey_id:
+        df.loc[df['騎手'].notna(), 'jockey_id'] = jockey_id_list
+
+    return df

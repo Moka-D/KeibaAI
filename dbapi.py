@@ -3,9 +3,11 @@
 import os
 import glob
 import sqlite3
+import numpy as np
 from typing import Any, List, Tuple, Union
 import pandas as pd
-from common import InvalidArgument
+from utils import InvalidArgument
+import warnings
 
 
 class DBManager:
@@ -41,17 +43,24 @@ class DBManager:
         if table_name not in ['race_info', 'horse', 'jockey', 'trainer']:
             raise InvalidArgument("invalid argument of table_name: '{}'".format(table_name))
 
-        ret = True
-        cur = self._conn.cursor()
         if table_name == 'race_info':
-            sql = 'SELECT * FROM {} WHERE race_id = "{}"'.format(table_name, id)
+            sql = 'SELECT * FROM {} WHERE race_id="{}"'.format(table_name, id)
         else:
-            sql = 'SELECT * FROM {} WHERE id = "{}"'.format(table_name, id)
-        cur.execute(sql)
-        if not cur.fetchall():
-            ret = False
+            sql = 'SELECT * FROM {} WHERE id="{}"'.format(table_name, id)
 
-        cur.close()
+        cur = self._conn.cursor()
+        try:
+            cur.execute(sql)
+            if cur.fetchall():
+                ret = True
+            else:
+                ret = False
+        except sqlite3.Error as e:
+            print("sqlite3.Error occurred:", e.args[0])
+            ret = False
+        finally:
+            cur.close()
+
         return ret
 
     def select_resutls(self, where_list: List[str] = []) -> Union[pd.DataFrame, None]:
@@ -91,3 +100,70 @@ class DBManager:
             self._conn.rollback()
         finally:
             cur.close()
+
+    def update_data(self, sql: str):
+        cur = self._conn.cursor()
+        try:
+            cur.execute(sql)
+            self._conn.commit()
+        except sqlite3.Error as e:
+            print("sqlite3.Error occurred:", e.args[0])
+            self._conn.rollback()
+        finally:
+            cur.close()
+
+    def select_data(self, sql: str):
+        try:
+            df = pd.read_sql(sql, self._conn)
+        except sqlite3.Error as e:
+            print("sqlite3.Error occurred:", e.args[0])
+            df = pd.DataFrame()
+        return df
+
+    def is_horse_results_inserted(self, horse_id: str, race_id: str) -> bool:
+        if race_id is None:
+            sql = 'SELECT * FROM horse_results WHERE horse_id="{}"'.format(horse_id)
+        else:
+            sql = 'SELECT * FROM horse_results WHERE horse_id="{}" and race_id="{}"'.format(horse_id, race_id)
+        cur = self._conn.cursor()
+
+        try:
+            cur.execute(sql)
+            if cur.fetchall():
+                ret = True
+            else:
+                ret = False
+        except sqlite3.Error as e:
+            print("sqlite3.Error occurred:", e.args[0])
+            ret = False
+        finally:
+            cur.close()
+
+        return ret
+
+    def get_race_id_list(self):
+        sql = 'SELECT race_id FROM race_info'
+        df = pd.read_sql(sql, self._conn)
+        return df['race_id'].values.tolist()
+
+    def get_jockey_id(self, jockey_name: str):
+        sql = 'SELECT id FROM jockey WHERE name="{}"'.format(jockey_name)
+        cur = self._conn.cursor()
+
+        try:
+            cur.execute(sql)
+            jockey_id_list = cur.fetchall()
+            if len(jockey_id_list) == 0:
+                warnings.warn("jockey_name:'{}' does not exists. Retun NaN.".format(jockey_name))
+                jockey_id = np.nan
+            elif len(jockey_id_list) > 1:
+                warnings.warn("Multi records of jockey_name:'{}' exist. Return NaN.".format(jockey_name))
+                jockey_id = np.nan
+            else:
+                jockey_id = jockey_id_list[0][0]
+        except sqlite3.Error as e:
+            print("sqlite3.Error occurred:", e.args[0])
+        finally:
+            cur.close()
+
+        return jockey_id

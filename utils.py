@@ -73,6 +73,24 @@ PAYOFF_KIND_TO_ID = {
 }
 
 
+class InvalidArgument(Exception):
+    """不正引数例外クラス"""
+    pass
+
+
+def get_environment():
+    try:
+        env = get_ipython().__class__.__name__
+        if env == 'ZMQInteractiveShell':
+            return 'Jupyter'
+        elif env == 'TerminalInteractiveShell':
+            return 'IPython'
+        else:
+            return 'OtherShell'
+    except NameError:
+        return 'Interpreter'
+
+
 def create_race_id_list(year: int) -> List[str]:
     """
     指定した年の全レースIDを生成する関数
