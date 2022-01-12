@@ -11,5 +11,6 @@ CREATE TABLE "race_info" (
 	"turn"	TEXT,
 	"ground"	TEXT,
 	"weather"	TEXT,
+	"horse_num"	INTEGER,
 	PRIMARY KEY("race_id")
 )

@@ -25,14 +25,13 @@ def main(args):
 
     print('Creating race id list...')
     race_id_list = scrape_period_race_id_list(start_year=year,
-                                   end_year=year,
-                                   start_month=month,
-                                   end_month=month)
+                                              end_year=year,
+                                              start_month=month,
+                                              end_month=month)
 
-    #reg = Registar(db_config['path'])
-    #reg.regist_race_results(race_id_list)
-    #print('Finished.')
-    print(race_id_list)
+    reg = Registar(db_config['path'])
+    reg.regist_race_results(race_id_list)
+    print('Finished.')
 
 
 if __name__ == '__main__':
