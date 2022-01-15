@@ -29,7 +29,7 @@ def main(args):
         else:
             raise InvalidArgument('Arguments must be numeric.')
 
-    reg = Registar(db_config['path'])
+    reg = Registar(db_config['main'])
     for year in year_list:
         try:
             race_id_list = create_race_id_list(year)

@@ -29,7 +29,7 @@ def main(args):
                                               start_month=month,
                                               end_month=month)
 
-    reg = Registar(db_config['path'])
+    reg = Registar(db_config['main'])
     reg.regist_race_results(race_id_list)
     print('Finished.')
 

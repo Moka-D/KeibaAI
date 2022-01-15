@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+from tkinter.messagebox import NO
 sys.path.append(os.pardir)
 import warnings
 import glob
@@ -64,10 +65,11 @@ class DBManager:
 
         return ret
 
-    def select_resutls(self, where_list: List[str] = []) -> Union[pd.DataFrame, None]:
+    def select_resutls(self, where: str = None) -> Union[pd.DataFrame, None]:
         sql = 'SELECT * FROM results INNER JOIN race_info USING(race_id)'
-        if where_list:
-            sql += ' WHERE '
+        if where is not None:
+            sql += ' WHERE ' + where
+
         try:
             return pd.read_sql(sql, self._conn)
         except sqlite3.Error as e:
@@ -85,6 +87,11 @@ class DBManager:
         sql = 'SELECT id, father, mother, fathers_father, fathers_mother, mothers_father, mothers_mother FROM horse'
         df = pd.read_sql(sql, self._conn)
         return df.set_index('id')
+
+    def select_horse_results(self):
+        sql = 'SELECT * FROM horse_results INNER JOIN race_info USING(race_id)'
+        df = pd.read_sql(sql, self._conn)
+        return df
 
     def get_horse_id_list(self) -> List[str]:
         sql = 'SELECT id FROM horse'

@@ -390,7 +390,8 @@ def scrape_race_card_id_list(race_date: str) -> List[str]:
         a_tag = elem.find("a")
         if a_tag:
             href = a_tag.get('href')
-            match = re.findall("\/race\/result.html\?race_id=(.*)&rf=race_list", href)
+            #match = re.findall("\/race\/result.html\?race_id=(.*)&rf=race_list", href)
+            match = re.findall("\/race\/shutuba.html\?race_id=(.*)&rf=race_list", href)
             if len(match) > 0:
                 race_id = match[0]
                 race_id_list.append(race_id)

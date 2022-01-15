@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
 import re
-import re
 import datetime as dt
 from common.register import Registar
 from common.db_config import db_config
@@ -16,7 +15,7 @@ def main(args):
     if len(args) != 2:
         raise InvalidArgument('It needs 1 argument.')
     if re.fullmatch(DATE_PATTERN, args[1]) is None:
-        raise InvalidArgument("Argument Format -> 'xxxx/yy/zz'")
+        raise InvalidArgument("Argument Format -> 'yyyy/mm/dd'")
 
     race_date = dt.datetime.strptime(args[1], '%Y/%m/%d').date().strftime('%Y%m%d')
     print('Creating race id list...')
@@ -25,8 +24,11 @@ def main(args):
     except AttributeError:
         raise InvalidArgument("Invalid race date.")
 
-    #reg = Registar(db_config['path'])
-    reg = Registar("D:\\Masatoshi\\Work\\db\\keiba_test.db")
+    if not race_id_list:
+        print('"race_id_list" is null.')
+        return
+
+    reg = Registar(db_config['main'])
     ng_horse_id_list = []
     for race_id in tqdm(race_id_list):
         try:
@@ -38,7 +40,7 @@ def main(args):
 
     if ng_horse_id_list:
         print("There is ng_horse_id_list.")
-        joblib.dump(ng_horse_id_list, 'error_id_list.txt')
+        joblib.dump(ng_horse_id_list, 'error_id_list.pkl')
 
     print('Finished')
 
