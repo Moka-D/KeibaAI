@@ -361,7 +361,7 @@ class Results(DataProcessor):
     def target_binary(self, drop_nan: bool = False):
         df = self.get_final_data(drop_nan)
         df['l_days'].dropna(inplace=True)
-        df['rank']  = df['arriving_order'].map(lambda x: 1 if x < 4 else 0)
+        df['rank']  = df['arriving_order'].map(lambda x: 0 if x < 4 else 1)
         return df.drop(['arriving_order'], axis=1)
 
     def target_multiclass(self, drop_nan: bool = False):
