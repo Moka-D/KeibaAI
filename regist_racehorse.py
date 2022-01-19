@@ -42,7 +42,7 @@ def main(args):
         print("There is ng_horse_id_list.")
         joblib.dump(ng_horse_id_list, 'error_id_list.pkl')
 
-    print('Finished') 
+    print('Finished')
 
 
 if __name__ == '__main__':
