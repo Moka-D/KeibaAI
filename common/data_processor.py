@@ -11,7 +11,7 @@ from typing import List, Tuple, Union
 import warnings
 import pandas as pd
 import itertools
-from common.utils import get_environment
+from common.utils import InvalidArgument, get_environment
 from sklearn.preprocessing import LabelEncoder
 import numpy as np
 if get_environment() == 'Jupyter':
@@ -122,7 +122,8 @@ class HorseResults:
                                'win_odds', 'popularity',
                                'arriving_order', 'ground', 'goal_time',
                                'race_type', 'distance', 'ground', 'time_diff',
-                               'corner_pass', 'last_three_furlong', 'prise']]
+                               'corner_pass', 'last_three_furlong', 'prise',
+                               'horse_num']]
         self.data_p = pd.DataFrame()
         self.preprocesing()
 
@@ -143,6 +144,7 @@ class HorseResults:
 
         # 型変換
         df['arriving_order'] = pd.to_numeric(df['arriving_order'], errors='coerce')
+        df[df['arriving_order']==1]['time_diff'].fillna(0, inplace=True)
         df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
         df['goal_time'] = df['goal_time'].map(convert_time, na_action='ignore')
 
@@ -158,44 +160,53 @@ class HorseResults:
         df['first_corner'] = df['corner_pass'].map(lambda x: corner(x, 1))
         df['last_corner'] = df['corner_pass'].map(lambda x: corner(x, 4))
 
+        # 頭数で割る
+        df['arriving_order'] = df['arriving_order'] / df['horse_num']
+        df['popularity'] = df['popularity'] / df['horse_num']
+        df['first_corner'] = df['first_corner'] / df['horse_num']
+        df['last_corner'] = df['last_corner'] / df['horse_num']
+
+        # 距離で割る
+        df['goal_time'] = df['goal_time'] / df['distance'] * 100
+
         self.data_p = df.set_index('horse_id')
 
-    def _get_l_days(self, horse_id_list: List[str], date: dt.datetime):
-        target_df = self.data_p.query('index in @horse_id_list')
-        filtered_df = target_df[target_df['date'] < date].sort_values('date', ascending=False).groupby(level=0).head(1)
+    def _get_l_days(self, target_df: pd.DataFrame, date: dt.datetime):
+        filtered_df = target_df.groupby(level=0).head(1)
         td = date - filtered_df['date']
         td.rename('l_days', inplace=True)
         return td.map(lambda x: x.days)
 
-    def _get_average(self, horse_id_list: List[str], date: dt.datetime, n_samples: Union[int, str] = 'all'):
+    def _get_average(self, target_df: pd.DataFrame, n_samples: Union[int, str] = 'all'):
         ave_target_cols = [
-            'arriving_order', 'popularity', 'distance', 'time_diff', 'last_three_furlong',
+            'arriving_order', 'popularity', 'distance', 'goal_time', 'time_diff', 'last_three_furlong',
             'first_corner', 'last_corner', 'prise'
         ]
 
-        target_df = self.data_p.query('index in @horse_id_list')
-        filtered_df = target_df[target_df['date'] < date].sort_values('date', ascending=False).groupby(level=0).head(n_samples)
-
         if n_samples == 'all':
-            filtered_df = target_df[target_df['date'] < date].sort_values('date', ascending=False).groupby(level=0)
+            filtered_df = target_df
         elif n_samples > 0:
-            filtered_df = target_df[target_df['date'] < date].sort_values('date', ascending=False).groupby(level=0).head(n_samples)
+            filtered_df = target_df.groupby(level=0).head(n_samples)
+        else:
+            raise InvalidArgument("'n_samples' must be >0")
 
         average = filtered_df.groupby(level=0)[ave_target_cols].mean()
         return pd.DataFrame(average).add_suffix('_{}R'.format(n_samples))
 
-    def _merge_per_date(self, results: pd.DataFrame, date: dt.datetime, ave_samples: Union[int, str] = 'all') -> pd.DataFrame:
+    def _merge_per_date(self, results: pd.DataFrame, date: dt.datetime, ave_samples_list: List[Union[int, str]] = [5, 9, 'all']) -> pd.DataFrame:
         df = results[results['date'] == date]
         horse_id_list = df['horse_id']
+        target_df = self.data_p.query('index in @horse_id_list')
+        target_df = target_df[target_df['date'] < date].sort_values('date', ascending=False)
 
-        merged_df = df.merge(self._get_l_days(horse_id_list, date), left_on='horse_id', right_index=True, how='left')
-        #merged_df = pd.concat([df, self._get_l_days(horse_id_list, date)], axis=1)
-        merged_df = merged_df.merge(self._get_average(horse_id_list, date, ave_samples), left_on='horse_id', right_index=True, how='left')
+        merged_df = df.merge(self._get_l_days(target_df, date), left_on='horse_id', right_index=True, how='left')
+        for ave_samples in ave_samples_list:
+            merged_df = merged_df.merge(self._get_average(target_df, ave_samples), left_on='horse_id', right_index=True, how='left')
         return merged_df
 
-    def merge_all(self, results: pd.DataFrame, ave_samples: Union[int, str] = 'all') -> pd.DataFrame:
+    def merge_all(self, results: pd.DataFrame, ave_samples_list: List[Union[int, str]] = [5, 9, 'all']) -> pd.DataFrame:
         date_list = results['date'].unique()
-        merged_df = pd.concat([self._merge_per_date(results, date, ave_samples) for date in tqdm(date_list)])
+        merged_df = pd.concat([self._merge_per_date(results, date, ave_samples_list) for date in tqdm(date_list)])
         return merged_df
 
 
@@ -207,10 +218,10 @@ class DataProcessor:
         self.data_pe = pd.DataFrame()
         self.data_c = pd.DataFrame()
 
-    def merge_horse_results(self, hr: HorseResults, ave_samples: Union[int, str] = 'all') -> None:
+    def merge_horse_results(self, hr: HorseResults, ave_samples_list: List[Union[int, str]] = [5, 9, 'all']) -> None:
         df = self.data_p.copy()
-        df = hr.merge_all(df, ave_samples)
-        self.data_m = df#[df['l_days'].notna()]
+        df = hr.merge_all(df, ave_samples_list)
+        self.data_m = df
 
     def merge_peds(self, peds: Peds):
         self.data_pe = self.data_m.merge(peds.data_e, left_on='horse_id', right_index=True, how='left')
@@ -308,13 +319,13 @@ class Results(DataProcessor):
         df.set_index('race_id', inplace=True)
 
         # 何月開催か
-        df['month'] = df['date'].map(lambda x: (x % 100000000) // 1000000)
+        df['month'] = df['date'].map(lambda x: (x % 10000) // 100)
 
         # 着順
         df['arriving_order'] = pd.to_numeric(df['arriving_order'], errors='coerce')
         df.dropna(subset=['arriving_order'], inplace=True)
         df['arriving_order'] = df['arriving_order'].astype(int)
-        df['rank'] = df['arriving_order'].map(lambda x: 1 if x < 4 else 0)
+        #df['rank'] = df['arriving_order'].map(lambda x: 1 if x < 4 else 0)
 
         # 性齢
         df['sex'] = df['sex_age'].map(lambda x: str(x)[0])
@@ -336,7 +347,7 @@ class Results(DataProcessor):
         # 不要列削除
         df.drop(['sex_age', 'horse_weight', 'win_odds', 'popularity',
                  'corner_pass', 'owner_name', 'margin_length', 'race_title',
-                 'arriving_order', 'goal_time', 'last_three_furlong', 'prise'],
+                 'goal_time', 'last_three_furlong', 'prise'],
                 axis=1, inplace=True)
 
         self.data_p = df
@@ -347,11 +358,26 @@ class Results(DataProcessor):
         self.le_trainer = LabelEncoder().fit(self.data_pe['trainer_id'])
         super().process_categorical(self.le_horse, self.le_jockey, self.le_jockey)
 
-    def get_final_data(self, drop_nan: bool = True) -> pd.DataFrame:
-        df = self.data_c.copy()
-        if drop_nan:
-            df = df.dropna()
-        return df.drop(['horse_id'], axis=1)
+    def target_binary(self, drop_nan: bool = False):
+        df = self.get_final_data(drop_nan)
+        df['l_days'].dropna(inplace=True)
+        df['rank']  = df['arriving_order'].map(lambda x: 1 if x < 4 else 0)
+        return df.drop(['arriving_order'], axis=1)
+
+    def target_multiclass(self, drop_nan: bool = False):
+        df = self.get_final_data(drop_nan)
+        df['l_days'].dropna(inplace=True)
+
+        def get_rank(n):
+            if n < 4:
+                return 0
+            elif n >= 4 and n < 9:
+                return 1
+            else:
+                return 2
+
+        df['rank'] = df['arriving_order'].map(get_rank)
+        return df.drop(['arriving_order'], axis=1)
 
 
 class RaceCard(DataProcessor):
