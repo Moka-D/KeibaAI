@@ -49,9 +49,10 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, Union[str, int]], pd.DataF
     payoff_table : pandas.DataFrame
         払い戻し表
     """
-    time.sleep(1)
+
     url = 'https://db.sp.netkeiba.com/race/' + race_id
 
+    time.sleep(1)
     html = requests.get(url)
     html.encoding = 'EUC-JP'
     soup = BeautifulSoup(html.text, 'html.parser')
@@ -165,6 +166,7 @@ def scrape_race_info(race_id: str) -> Tuple[Dict[str, Union[str, int]], pd.DataF
         trainer_id = a['href'].removeprefix('https://db.sp.netkeiba.com/trainer/').removesuffix('/')
         trainer_id_list.append(trainer_id)
 
+    time.sleep(1)
     df_list = pd.read_html(url)
     df = df_list[0]
     df['horse_id'] = horse_id_list
@@ -197,8 +199,10 @@ def scrape_horse_peds(horse_id: str) -> pd.DataFrame:
     peds_df : pandas.DataFrame
         馬の血統表 (2世代前まで)
     """
-    time.sleep(1)
+
     url = 'https://db.netkeiba.com/horse/' + horse_id
+
+    time.sleep(1)
     df = pd.read_html(url)[2]
 
     generations = {}
@@ -227,8 +231,10 @@ def scrape_race_card(race_id: str, date: int) -> pd.DataFrame:
     race_card_df : pd.DataFrame
         出馬表
     """
-    time.sleep(1)
+
     url = 'https://race.netkeiba.com/race/shutuba.html?race_id=' + race_id
+
+    time.sleep(1)
     df = pd.read_html(url)[0]
     df = df.T.reset_index(level=0, drop=True).T
 
@@ -314,9 +320,10 @@ def scrape_horse_results(horse_id: str, with_jockey_id: bool = True) -> pd.DataF
     pd.DataFrame
         結果df
     """
-    time.sleep(1)
+
     url = 'https://db.netkeiba.com/horse/result/' + horse_id
 
+    time.sleep(1)
     html = requests.get(url)
     html.encoding = 'EUC-JP'
     soup = BeautifulSoup(html.text, 'html.parser')
@@ -336,6 +343,7 @@ def scrape_horse_results(horse_id: str, with_jockey_id: bool = True) -> pd.DataF
             jockey_id = a['href'].removeprefix('/jockey/').removesuffix('/')
             jockey_id_list.append(jockey_id)
 
+    time.sleep(1)
     df = pd.read_html(url)[0]
 
     df.loc[df['レース名'].notna(), 'race_id'] = race_id_list
@@ -464,7 +472,10 @@ def scrape_period_race_id_list(
     return race_id_list
 
 
-def scrape_race_card_id_list(race_date: str) -> List[str]:
+def scrape_race_card_id_list(
+    race_date: str,
+    is_past: bool = False
+) -> List[str]:
 
     race_id_list = []
     url = "https://race.netkeiba.com/top/race_list.html?kaisai_date=" + race_date
@@ -485,8 +496,10 @@ def scrape_race_card_id_list(race_date: str) -> List[str]:
             a_tag = elem.find("a")
             if a_tag:
                 href = a_tag.get('href')
-                #match = re.findall("\/race\/result.html\?race_id=(.*)&rf=race_list", href)
-                match = re.findall("\/race\/shutuba.html\?race_id=(.*)&rf=race_list", href)
+                if is_past:
+                    match = re.findall("\/race\/result.html\?race_id=(.*)&rf=race_list", href)
+                else:
+                    match = re.findall("\/race\/shutuba.html\?race_id=(.*)&rf=race_list", href)
                 if len(match) > 0:
                     race_id = match[0]
                     race_id_list.append(race_id)
