@@ -476,6 +476,20 @@ def scrape_race_card_id_list(
     race_date: str,
     is_past: bool = False
 ) -> List[str]:
+    """指定日に開催のレースID一覧を取得
+
+    Parameters
+    ----------
+    race_date : str
+        レースの開催日 (フォーマット:'20xx/yy/zz')
+    is_past : bool, default False
+        過去の日付かどうか
+
+    Returns
+    -------
+    list[str]
+        レースID一覧
+    """
 
     race_id_list = []
     url = "https://race.netkeiba.com/top/race_list.html?kaisai_date=" + race_date
