@@ -1,0 +1,8 @@
+.venv
+.VSCodeCounter
+__pycache__
+test*
+error_horses.txt
+train.ipynb
+results_m_2015_2021.pickle
+*.log

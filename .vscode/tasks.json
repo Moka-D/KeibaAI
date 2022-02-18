@@ -1,0 +1,64 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "options": {
+        "env": {
+            "LINE_API_TOKEN": "1XGIUV3rFDuLJKgDf5TUDiKEEt5WLmUe3vAz164JUtK",
+            "SELENIUM_URL": "http://moka-server:4444/wd/hub"
+        }
+    },
+    "tasks": [
+        {
+            "label": "Regist per Month",
+            "type": "shell",
+            "command": "python",
+            "group": "build",
+            "args": [
+                "${file}",
+                "--local",
+                "${input:param1}",
+                "${input:param2}"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Regist per Year",
+            "type": "shell",
+            "command": "python",
+            "group": "build",
+            "args": [
+                "${file}",
+                "--local",
+                "${input:param1}"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Regist Racecard",
+            "type": "shell",
+            "command": "python",
+            "group": "build",
+            "args": [
+                "${file}",
+                "--local",
+                "${input:param1}"
+            ],
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "param1",
+            "description": "Param1",
+            "default": "",
+            "type": "promptString"
+        },
+        {
+            "id": "param2",
+            "description": "Param2",
+            "default": "",
+            "type": "promptString"
+        }
+    ]
+}

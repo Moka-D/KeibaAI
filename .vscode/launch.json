@@ -1,0 +1,25 @@
+{
+    // IntelliSense を使用して利用可能な属性を学べます。
+    // 既存の属性の説明をホバーして表示します。
+    // 詳細情報は次を確認してください: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "stopOnEntry": true,
+            "program": "${file}",
+            "debugOptions": [
+                "WaitOnAbnormalExit",
+                "WaitOnNormalExit",
+                "RedirectOutput"
+            ],
+            "env": {
+                "LINE_API_TOKEN": "1XGIUV3rFDuLJKgDf5TUDiKEEt5WLmUe3vAz164JUtK",
+                "SELENIUM_URL": "http://moka-server:4444/wd/hub"
+            },
+            "args": ["2015", "12"]
+        }
+    ]
+}
