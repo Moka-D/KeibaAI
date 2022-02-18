@@ -10,7 +10,7 @@ from common.scrape import scrape_period_race_id_list
 import argparse
 
 
-def main(year: int, month: int, is_local: bool = False):
+def main(year: int, month: int, is_local: bool = False, with_horse_results: bool = False):
     # 引数処理
     this_year = dt.datetime.today().year
     if year < 1975 or year > this_year:
@@ -46,7 +46,7 @@ def main(year: int, month: int, is_local: bool = False):
             dbr = DBRegistar(db_config['write'], logger)
 
         logger.debug("Start scraping race data of {}/{}.".format(year, month))
-        error_horses = dbr.regist_race_results(race_id_list)
+        error_horses = dbr.regist_race_results(race_id_list, with_horse_result=with_horse_results)
     except Exception:
         logger.exception("Unexpected error has been occurred.")
         send_line_notify("[Error] Unexpected error has been occurred. Stop scraping.")
@@ -78,10 +78,15 @@ if __name__ == '__main__':
         type=int
     )
     parser.add_argument(
+        "--results",
+        action="store_true",
+        help="with horse old results"
+    )
+    parser.add_argument(
         "-l", "--local",
         action="store_true",
         help="use local database config"
     )
     args = parser.parse_args()
 
-    main(args.year, args.month, args.local)
+    main(args.year, args.month, args.local, args.results)
