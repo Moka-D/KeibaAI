@@ -3,7 +3,7 @@
 import os
 import json
 from logging import Logger, getLogger, config
-from datetime import datetime
+import datetime as dt
 
 
 def get_module_logger(
@@ -35,7 +35,7 @@ def get_module_logger(
         log_conf = json.load(f)
 
     # ログファイルのパスを変更
-    log_filename = '{}.log'.format(datetime.utcnow().strftime("%Y%m%d_%H%M%S"))
+    log_filename = '{}.log'.format(dt.datetime.now().strftime("%Y%m%d_%H%M%S"))
     log_filepath = os.path.join(log_dir, log_filename)
     log_conf['handlers']['fileHandler']['filename'] = log_filepath
 
