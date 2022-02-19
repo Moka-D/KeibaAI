@@ -78,7 +78,7 @@ if __name__ == '__main__':
         type=int
     )
     parser.add_argument(
-        "--results",
+        "-r", "--results",
         action="store_true",
         help="with horse old results"
     )
