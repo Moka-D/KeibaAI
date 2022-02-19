@@ -25,7 +25,7 @@ class DBManager:
         DB設定
     """
 
-    def __init__(self, db_config: Dict[str, str], logger: Logger) -> None:
+    def __init__(self, db_config: Dict[str, str], logger: Logger = None) -> None:
         self._path = DB_URL_BASE.format(user=db_config['user'],
                                         password=db_config['pass'],
                                         host=db_config['host'],
@@ -118,7 +118,7 @@ class DBManager:
                     conn.commit()
                     ret = True
                 except psycopg2.Error as e:
-                    self._logger.exception("psycopg2.Error has been occurred.")
+                    self._handle_error_message("psycopg2.Error has been occurred.", e)
                     conn.rollback()
                     ret = False
         return ret
@@ -134,7 +134,7 @@ class DBManager:
                     conn.commit()
                     ret = True
                 except psycopg2.Error as e:
-                    self._logger.exception("psycopg2.Error has been occurred.")
+                    self._handle_error_message("psycopg2.Error has been occurred.", e)
                     conn.rollback()
                     ret = False
         return ret
@@ -174,3 +174,9 @@ class DBManager:
                 else:
                     jockey_id = jockey_id_list[0][0]
         return jockey_id
+
+    def _handle_error_message(self, msg: str, e: Exception):
+        if self._logger is None:
+            print(msg, e.args[0], file=sys.stderr)
+        else:
+            self._logger.exception(msg)
