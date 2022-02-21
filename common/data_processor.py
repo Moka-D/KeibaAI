@@ -213,16 +213,13 @@ class DataProcessor:
 
 
 class Results(DataProcessor):
-    def __init__(self, result_df: pd.DataFrame, is_merged: bool = False) -> None:
+    def __init__(self, result_df: pd.DataFrame) -> None:
         if len(result_df.index) == 0:
             raise InvalidArgument("'result_df' is empty")
 
         super().__init__()
-        if is_merged:
-            self.data_m = result_df
-        else:
-            self.data = result_df
-            self.preprocesing()
+        self.data = result_df
+        self.preprocesing()
         self.le_horse = None
         self.le_jockey = None
         self.le_trainer = None
@@ -267,6 +264,7 @@ class Results(DataProcessor):
         df['age'] = df['sex_age'].map(lambda x: re.findall(r'\d+', x)[0]).astype(int)
 
         # 馬体重
+        df = df[df['horse_weight']!='計不']
         df['weight'] = df['horse_weight'].str.split('(', expand=True)[0].astype(int)
         df['weight_change'] = df['horse_weight'].str.split('(', expand=True)[1].str[:-1].astype(int)
 
@@ -313,11 +311,17 @@ class Results(DataProcessor):
         df = hr.merge_all(df, base_df, n_races)
         self.data_m = df
 
-    def target_binary(self) -> pd.DataFrame:
+    def target_binary(self, with_horse_no: bool = False) -> pd.DataFrame:
+        if with_horse_no:
+            drop_cols = ['arriving_order', 'horse_id', 'jockey_id',
+                         'goal_time', 'popularity', 'prise']
+        else:
+            drop_cols = ['horse_no', 'arriving_order', 'horse_id', 'jockey_id',
+                         'goal_time', 'popularity', 'prise']
+
         df = self.data_m.copy()
         df['rank']  = df['arriving_order'].map(lambda x: 1 if x < 4 else 0)
-        return df.drop(['horse_no', 'arriving_order', 'horse_id', 'jockey_id',
-                        'goal_time', 'popularity', 'prise'], axis=1)
+        return df.drop(drop_cols, axis=1)
 
     def target_multiclass(self) -> pd.DataFrame:
         df = self.data_m.copy()
@@ -334,10 +338,16 @@ class Results(DataProcessor):
         return df.drop(['horse_no', 'arriving_order', 'horse_id', 'jockey_id',
                         'goal_time', 'popularity', 'prise'], axis=1)
 
-    def target_goal_time(self, race_type: str, drop_nan: bool = False):
+    def target_goal_time(self, with_horse_no: bool = False):
+        if with_horse_no:
+            drop_cols = ['arriving_order', 'horse_id', 'jockey_id',
+                         'popularity', 'prise']
+        else:
+            drop_cols = ['horse_no', 'arriving_order', 'horse_id', 'jockey_id',
+                         'popularity', 'prise']
+
         df = self.data_m.copy()
-        return df.drop(['horse_no', 'arriving_order', 'horse_id', 'jockey_id',
-                        'goal_time', 'popularity', 'prise'], axis=1)
+        return df.drop(drop_cols, axis=1)
 
 
 class RaceCard(DataProcessor):

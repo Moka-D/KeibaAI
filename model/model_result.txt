@@ -1,0 +1,104 @@
+[東京ダート1600m 2020-2021]
+
+[baseline]
+---- Top-1
+                hit    ret    std_ret
+win             0.286  0.699  1.164
+place           0.633  0.829  0.657
+
+---- Top-2
+                hit    ret    std_ret
+win             0.250  0.796  0.902
+place           0.551  0.784  0.513
+quinella place  0.327  0.885  1.362
+quinella        0.163  0.938  2.370
+exacta          0.082  1.008  2.464
+
+---- Top-3
+                hit    ret    std_ret
+win             0.224  0.845  0.723
+place           0.507  0.798  0.404
+quinella place  0.235  0.849  1.196
+quinella        0.099  0.781  1.424
+exacta          0.051  0.754  1.319
+trio            0.082  1.102  4.319
+trifecta        0.015  0.838  3.114
+
+
+[k-NN binary]
+---- Top-1
+                hit    ret    std_ret
+win             0.194  0.618  1.486
+place           0.449  0.782  1.327
+
+---- Top-2
+                hit    ret    std_ret
+win             0.179  0.638  1.072
+place           0.444  0.751  0.743
+quinella place  0.194  0.603  1.443
+quinella        0.071  0.370  1.556
+exacta          0.036  0.409  1.800
+
+---- Top-3
+                hit    ret    std_ret
+win             0.143  0.550  0.827
+place           0.415  0.769  0.518
+quinella place  0.129  0.502  0.991
+quinella        0.044  0.422  1.684
+exacta          0.022  0.413  1.560
+trio            0.020  0.236  1.841
+trifecta        0.003  0.368  3.128
+
+
+[LightGBM binary]
+---- Top-1
+                hit    ret    std_ret
+win             0.184  0.632  1.546
+place           0.439  0.671  0.826
+
+---- Top-2
+                hit    ret    std_ret
+win             0.179  0.632  1.034
+place           0.418  0.668  0.608
+quinella place  0.194  0.652  1.644
+quinella        0.082  0.428  1.642
+exacta          0.041  0.468  1.879
+
+---- Top-3
+                hit    ret    std_ret
+win             0.153  0.613  0.854
+place           0.381  0.647  0.452
+quinella place  0.133  0.491  1.095
+quinella        0.058  0.500  1.726
+exacta          0.029  0.500  1.617
+trio            0.041  0.635  3.295
+trifecta        0.007  0.692  3.853
+
+
+[LightGBM Regression]
+---- Top-1
+                hit    ret    std_ret
+win             0.214  0.695  1.532
+place           0.469  0.692  0.804
+
+---- Top-2
+                hit    ret    std_ret
+win             0.189  1.055  2.606
+place           0.454  0.842  0.844
+quinella place  0.184  0.591  1.419
+quinella        0.082  0.804  3.065
+exacta          0.041  0.686  2.761
+
+---- Top-3
+                hit    ret    std_ret
+win             0.167  0.867  1.735
+place           0.405  0.813  0.690
+quinella place  0.136  0.680  1.428
+quinella        0.061  0.535  1.360
+exacta          0.032  0.515  1.273
+trio            0.031  0.417  2.433
+trifecta        0.005  0.418  2.543
+
+
+[LightGBM multiclass]
+

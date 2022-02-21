@@ -3,34 +3,51 @@
 import os
 import sys
 sys.path.append(os.pardir)
+import pandas as pd
 import re
 import datetime as dt
 from dateutil.relativedelta import relativedelta
-from common.data_processor import RaceCard, Results, HorseResults, proc_dummies_and_std
+from common.data_processor import RaceCard, Results, HorseResults
 from config.db_config import db_config
 from common.utils import DATE_PATTERN, InvalidArgument, Racecourse
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn import metrics
+import lightgbm as lgb
 
 
-def predict_by_knn(
+params = {
+    'binary': {
+        'task': 'train',
+        'boosting_type': 'gbdt',
+        'objective': 'binary',
+        'metric': 'auc'
+    },
+    'regression': {
+        'task': 'train',
+        'boosting_type': 'gbdt',
+        'objective': 'regression',
+        'metric': 'rmse'
+    }
+}
+
+
+def predict_by_lgb(
     race_id: str,
+    target: str,
     race_date: str = None
 ):
-    #end_date = (race_date // 10000 - 1) * 10000 + 101
-    #begin_date = end_date - 50000
+    if target not in ['binary', 'regression']:
+        raise InvalidArgument("Argument 'target' mest be 'binary' or 'regression'")
 
     if race_date is None:
         race_date_d = dt.datetime.today().date()
     else:
         if re.fullmatch(DATE_PATTERN, race_date) is None:
-            raise InvalidArgument("Argument Format -> 'yyyy/mm/dd'")
+            raise InvalidArgument("Argument 'race_date' Format -> 'yyyy/mm/dd'")
 
         race_date_d = dt.datetime.strptime(race_date, '%Y/%m/%d').date()
 
     end_date_d = race_date_d - relativedelta(years=1, month=12, day=31)
     end_date = int(end_date_d.strftime('%Y%m%d'))
-    begin_date_d = dt.date(year=2015, month=1, day=1)
+    begin_date_d = dt.date(year=2014, month=1, day=1)
     begin_date = int(begin_date_d.strftime('%Y%m%d'))
 
     print("Scraping race card...")
@@ -54,6 +71,7 @@ def predict_by_knn(
                        race_type=race_type,
                        distance=distance,
                        option=" and age_limit <= 2")
+                       #option=" and classification != 6")
 
     print("Race num of training data from {} to {} : {}".format(begin_date_d.strftime('%Y/%m/%d'),
                                                                 end_date_d.strftime('%Y/%m/%d'),
@@ -66,27 +84,31 @@ def predict_by_knn(
     r.merge_horse_results(hr)
     rc.merge_horse_results(r, hr)
 
-    train = r.target_binary()
-    X_train = train.drop(['race_date', 'rank'], axis=1)
-    y_train = train['rank']
-    X_test = rc.get_test_df(X_train)
-    print(X_test)
+    if target == 'binary':
+        train = r.target_binary()
+        X_train = train.drop(['race_date', 'rank'], axis=1)
+        y_train = train['rank']
+    elif target == 'regression':
+        train = r.target_goal_time()
+        X_train = train.drop(['race_date', 'goal_time'], axis=1)
+        y_train = train['goal_time']
 
-    X_train, sc = proc_dummies_and_std(X_train, dummies_dict={'sex': ['牝', '牡']})
-    X_test, _ = proc_dummies_and_std(X_test, dummies_dict={'sex': ['牝', '牡']}, sc=sc)
+    X_test = rc.get_test_df(X_train)
+    X_train['sex'] = pd.Categorical(X_train['sex'], ['牡', '牝'])
+    X_train = pd.get_dummies(X_train, columns=['sex'])
+    X_test['sex'] = pd.Categorical(X_test['sex'], ['牡', '牝'])
+    X_test = pd.get_dummies(X_test, columns=['sex'])
 
     print("Training...")
-    model = KNeighborsClassifier(n_neighbors=100)
-    model.fit(X_train.values, y_train)
-    print("Train Accuracy :", metrics.accuracy_score(y_train, model.predict(X_train.values)))
+    lgb_train = lgb.Dataset(X_train, y_train)
+    model = lgb.train(params=params[target], train_set=lgb_train)
 
     print("=" * 50)
     print("Predict Result")
     race_card = rc.data[['馬番', '馬名']].copy()
-    race_card['pred'] = model.predict_proba(X_test.values)[:, 1]
-    race_card.sort_values('pred', ascending=False, inplace=True)
+    race_card['pred'] = model.predict(X_test, num_iteration=model.best_iteration)
+    if target == 'binary':
+        race_card.sort_values('pred', ascending=False, inplace=True)
+    elif target == 'regression':
+        race_card.sort_values('pred', ascending=True, inplace=True)
     print(race_card)
-
-
-if __name__ == '__main__':
-    predict_by_knn('202205010811', '2022/02/20')

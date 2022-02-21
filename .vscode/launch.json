@@ -19,7 +19,7 @@
                 "LINE_API_TOKEN": "1XGIUV3rFDuLJKgDf5TUDiKEEt5WLmUe3vAz164JUtK",
                 "SELENIUM_URL": "http://moka-server:4444/wd/hub"
             },
-            "args": ["2015", "12"]
+            "args": ["202205010811", "-d", "2022/02/20"]
         }
     ]
 }
