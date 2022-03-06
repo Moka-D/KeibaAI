@@ -216,7 +216,7 @@ def scrape_horse_peds(horse_id: str) -> pd.DataFrame:
     return peds_df
 
 
-def scrape_race_card(race_id: str, date: int) -> pd.DataFrame:
+def scrape_race_card(race_id: str, date: dt.date) -> pd.DataFrame:
     """出馬表をスクレイピングする関数
 
     Parameters
@@ -268,7 +268,8 @@ def scrape_race_card(race_id: str, date: int) -> pd.DataFrame:
         if text in WEATHER_LIST:
             df['weather'] = [text] * len(df)
 
-    df['race_date'] = [date] * len(df)
+    date_i = int(date.strftime('%Y%m%d'))
+    df['race_date'] = [date_i] * len(df)
     df['race_id'] = [race_id] * len(df)
     df['horse_num'] = [len(df)] * len(df)
 

@@ -4,8 +4,9 @@
 
 import os
 import sys
+
 sys.path.append(os.pardir)
-from typing import Any, List, Tuple, Union, Dict
+from typing import Any, List, Tuple, Union, Dict, Set
 import pandas as pd
 from common.utils import InvalidArgument
 import psycopg2
@@ -25,7 +26,7 @@ class DBManager:
         DB設定
     """
 
-    def __init__(self, db_config: Dict[str, str], logger: Logger) -> None:
+    def __init__(self, db_config: Dict[str, str], logger: Logger = None) -> None:
         self._path = DB_URL_BASE.format(user=db_config['user'],
                                         password=db_config['pass'],
                                         host=db_config['host'],
@@ -68,37 +69,58 @@ class DBManager:
                     ret = False
         return ret
 
-    def select_resutls(self, where: str = '') -> Union[pd.DataFrame, None]:
+    def select_resutls(self) -> Union[pd.DataFrame, None]:
         query = 'SELECT * FROM results INNER JOIN race_info USING(race_id)'
-        if where != '':
-            query += ' WHERE ' + where
-
-        with psycopg2.connect(self._path) as conn:
-            df = pd.read_sql(query, conn)
-        return df
+        return self._read_df(query)
 
     def select_payoffs(self) -> pd.DataFrame:
         query = 'SELECT * FROM race_payoff'
-        with psycopg2.connect(self._path) as conn:
-            df = pd.read_sql(query, conn)
-        return df
+        return self._read_df(query)
 
     def select_race_infos(self) -> pd.DataFrame:
         query = 'SELECT * FROM race_info'
-        with psycopg2.connect(self._path) as conn:
-            df = pd.read_sql(query, conn)
-        return df
+        return self._read_df(query)
 
     def select_horse_peds(self) -> pd.DataFrame:
         query = 'SELECT id, father, mother, fathers_father, fathers_mother, mothers_father, mothers_mother FROM horse'
-        with psycopg2.connect(self._path) as conn:
-            df = pd.read_sql(query, conn)
+        df = self._read_df(query)
         return df.set_index('id')
 
     def select_horse_results(self):
         query = 'SELECT * FROM horse_results'
-        with psycopg2.connect(self._path) as conn:
-            df = pd.read_sql(query, conn)
+        return self._read_df(query)
+
+    def select_horse_reuslts_with_list(self, horse_id_list: Union[List[str], Set[str]]):
+        query = 'SELECT * FROM horse_results WHERE horse_id IN %(horse_id_list)s'
+        params = {
+            'horse_id_list': tuple(horse_id_list)
+        }
+        return self._read_df(query, params)
+
+    def _read_df(self, query: str, params: Dict[str, Any] = None):
+        conn = psycopg2.connect(self._path)
+        try:
+            with conn.cursor() as cur:
+                if params is None:
+                    cur.execute(query)
+                else:
+                    cur.execute(query, params)
+                column_list = [d.name for d in cur.description]
+                df = pd.DataFrame(cur.fetchall(), columns=column_list)
+                dtype_dict = {}
+                for d in cur.description:
+                    if d.type_code == 1700:
+                        dtype_dict[d.name] = 'float64'
+                    if d.type_code == 1082:
+                        dtype_dict[d.name] = 'datetime64'
+                if len(dtype_dict) > 0:
+                    df = df.astype(dtype_dict)
+        except psycopg2.Error as e:
+            self._handle_error_message("psycopg2.Error has been occurred.", e)
+            df = pd.DataFrame()
+        finally:
+            conn.close()
+
         return df
 
     def get_horse_id_list(self) -> List[str]:
@@ -118,7 +140,7 @@ class DBManager:
                     conn.commit()
                     ret = True
                 except psycopg2.Error as e:
-                    self._logger.exception("psycopg2.Error has been occurred.")
+                    self._handle_error_message("psycopg2.Error has been occurred.", e)
                     conn.rollback()
                     ret = False
         return ret
@@ -134,7 +156,7 @@ class DBManager:
                     conn.commit()
                     ret = True
                 except psycopg2.Error as e:
-                    self._logger.exception("psycopg2.Error has been occurred.")
+                    self._handle_error_message("psycopg2.Error has been occurred.", e)
                     conn.rollback()
                     ret = False
         return ret
@@ -174,3 +196,9 @@ class DBManager:
                 else:
                     jockey_id = jockey_id_list[0][0]
         return jockey_id
+
+    def _handle_error_message(self, msg: str, e: Exception):
+        if self._logger is None:
+            print(msg, e.args[0], file=sys.stderr)
+        else:
+            self._logger.exception(msg)
