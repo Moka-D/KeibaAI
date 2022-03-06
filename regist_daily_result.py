@@ -11,7 +11,7 @@ from common.scrape import scrape_period_race_id_list, DATE_PATTERN, scrape_race_
 import argparse
 
 
-def main(race_date: str, is_local: bool = False):
+def main(race_date: str, is_local: bool = False, with_horse_results: bool = False):
     # 引数処理
     if re.fullmatch(DATE_PATTERN, race_date) is None:
         raise InvalidArgument("Argument Format -> 'yyyy/mm/dd'")
@@ -51,7 +51,7 @@ def main(race_date: str, is_local: bool = False):
             dbr = DBRegistar(db_config['write'], logger)
 
         logger.debug("Start scraping race data of {}.".format(race_date))
-        error_horses = dbr.regist_race_results(race_id_list, with_horse_result=False)
+        error_horses = dbr.regist_race_results(race_id_list, with_horse_result=with_horse_results)
     except Exception:
         logger.exception("Unexpected error has been occurred.")
         send_line_notify("[Error] Unexpected error has been occurred. Stop scraping.")
@@ -77,10 +77,15 @@ if __name__ == '__main__':
         help="the day that races take place (Format:'yyyy/mm/dd')"
     )
     parser.add_argument(
+        "-r", "--results",
+        action="store_true",
+        help="with horse old results"
+    )
+    parser.add_argument(
         "-l", "--local",
         action="store_true",
         help="use local database config"
     )
     args = parser.parse_args()
 
-    main(args.race_date, args.local)
+    main(args.race_date, args.local, args.results)
