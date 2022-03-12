@@ -475,15 +475,15 @@ def scrape_period_race_id_list(
 
 
 def scrape_race_card_id_list(
-    race_date: str,
+    race_date: dt.date,
     is_past: bool = False
 ) -> List[str]:
     """指定日に開催のレースID一覧を取得
 
     Parameters
     ----------
-    race_date : str
-        レースの開催日 (フォーマット:'20xx/yy/zz')
+    race_date : dt.date
+        レースの開催日
     is_past : bool, default False
         過去の日付かどうか
 
@@ -494,7 +494,8 @@ def scrape_race_card_id_list(
     """
 
     race_id_list = []
-    url = "https://race.netkeiba.com/top/race_list.html?kaisai_date=" + race_date
+    race_date_s = race_date.strftime('%Y%m%d')
+    url = "https://race.netkeiba.com/top/race_list.html?kaisai_date=" + race_date_s
 
     driver = get_driver()
 
