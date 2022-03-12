@@ -33,9 +33,9 @@ def main(race_date: str, is_local: bool = False):
     error_horse_list = []
     try:
         logger.debug("Start scraping 'race_id_list' of {}.".format(race_date))
-        race_date_i = dt.datetime.strptime(race_date, '%Y/%m/%d').date().strftime('%Y%m%d')
+        race_date_d = dt.datetime.strptime(race_date, '%Y/%m/%d').date()
         try:
-            race_id_list = scrape_race_card_id_list(race_date_i)
+            race_id_list = scrape_race_card_id_list(race_date_d)
         except AttributeError:
             raise InvalidArgument("Invalid race date.")
 
@@ -54,7 +54,7 @@ def main(race_date: str, is_local: bool = False):
         for race_id in race_id_list:
             logger.debug("Start scraping horse data of race_id:{}.".format(race_id))
             try:
-                race_card = scrape_race_card(race_id, int(race_date_i))
+                race_card = scrape_race_card(race_id, race_date_d)
                 error_horse_list += dbr.regist_horse(dict(zip(race_card['horse_id'], race_card['馬名'])),
                                                      with_horse_result=True)
             except AttributeError:

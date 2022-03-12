@@ -45,6 +45,18 @@
                 "${input:param1}"
             ],
             "problemMatcher": []
+        },
+        {
+            "label": "Regist per Day",
+            "type": "shell",
+            "command": "python",
+            "group": "build",
+            "args": [
+                "${file}",
+                "--local",
+                "${input:param1}"
+            ],
+            "problemMatcher": []
         }
     ],
     "inputs": [

@@ -32,9 +32,9 @@ def main(race_date: str, is_local: bool = False, with_horse_results: bool = Fals
 
     try:
         logger.debug("Start scraping 'race_id_list' of {}.".format(race_date))
-        race_date_i = dt.datetime.strptime(race_date, '%Y/%m/%d').date().strftime('%Y%m%d')
+        race_date_d = dt.datetime.strptime(race_date, '%Y/%m/%d').date()
         try:
-            race_id_list = scrape_race_card_id_list(race_date_i, is_past=True)
+            race_id_list = scrape_race_card_id_list(race_date_d, is_past=True)
         except AttributeError:
             raise InvalidArgument("Invalid race date.")
 
