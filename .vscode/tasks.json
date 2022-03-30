@@ -54,6 +54,7 @@
             "args": [
                 "${file}",
                 "--local",
+                "-r",
                 "${input:param1}"
             ],
             "problemMatcher": []
