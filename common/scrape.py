@@ -338,10 +338,10 @@ def scrape_horse_results(horse_id: str, with_jockey_id: bool = True) -> pd.DataF
             race_id_list.append(href.removeprefix('/race/').removesuffix('/'))
 
     if with_jockey_id:
-        jockey_a_list = result_table.find_all('a', attrs={'href': re.compile('^/jockey')})
+        jockey_a_list = result_table.find_all('a', attrs={'href': re.compile('^/jockey/result/recent')})
         jockey_id_list = []
         for a in jockey_a_list:
-            jockey_id = a['href'].removeprefix('/jockey/').removesuffix('/')
+            jockey_id = a['href'].removeprefix('/jockey/result/recent/').removesuffix('/')
             jockey_id_list.append(jockey_id)
 
     time.sleep(1)
