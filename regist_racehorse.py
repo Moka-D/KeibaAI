@@ -34,8 +34,17 @@ def main(race_date: str, is_local: bool = False):
     try:
         logger.debug("Start scraping 'race_id_list' of {}.".format(race_date))
         race_date_d = dt.datetime.strptime(race_date, '%Y/%m/%d').date()
+        today = dt.datetime.today().date()
+
+        if today == race_date_d:
+            t_now = dt.datetime.now().time()
+            t_limit = dt.datetime.strptime('8:00', '%H:%M').time()
+            is_past = t_now > t_limit
+        else:
+            is_past = today > race_date_d
+
         try:
-            race_id_list = scrape_race_card_id_list(race_date_d)
+            race_id_list = scrape_race_card_id_list(race_date_d, is_past=is_past)
         except AttributeError:
             raise InvalidArgument("Invalid race date.")
 
