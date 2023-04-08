@@ -1,14 +1,15 @@
 #!/usr/bin/python
 
+import argparse
+import datetime as dt
 import time
 from typing import List
+
+from common.db_register import DBRegistar
 from common.log_api import get_module_logger
 from common.scrape import scrape_period_race_id_list
 from common.utils import InvalidArgument, send_line_notify
-from common.db_register import DBRegistar
 from config.db_config import db_config
-import argparse
-import datetime as dt
 
 
 def main(year_list: List[int], is_local: bool = False):

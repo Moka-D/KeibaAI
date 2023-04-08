@@ -6,13 +6,14 @@ import os
 import sys
 
 sys.path.append(os.pardir)
-from typing import Any, List, Tuple, Union, Dict, Set
+from logging import Logger
+from typing import Any, Dict, List, Set, Tuple, Union
+
 import pandas as pd
-from common.utils import InvalidArgument
 import psycopg2
 from psycopg2.extras import execute_values
-from logging import Logger
 
+from common.utils import InvalidArgument
 
 DB_URL_BASE = 'postgresql://{user}:{password}@{host}:{port}/{dbname}'
 

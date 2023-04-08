@@ -2,23 +2,27 @@
 
 import os
 import sys
+
 sys.path.append(os.pardir)
-import re
 import datetime as dt
+import re
+
 from dateutil.relativedelta import relativedelta
-from common.data_processor import RaceCard, Results, HorseResults, proc_dummies_and_std
-from config.db_config import db_config
-from common.utils import DATE_PATTERN, InvalidArgument, Racecourse
-from sklearn.neighbors import KNeighborsClassifier
 from sklearn import metrics
+from sklearn.neighbors import KNeighborsClassifier
+
+from common.data_processor import (HorseResults, RaceCard, Results,
+                                   proc_dummies_and_std)
+from common.utils import DATE_PATTERN, InvalidArgument, Racecourse
+from config.db_config import db_config
 
 
 def predict_by_knn(
     race_id: str,
     race_date: str = None
 ):
-    #end_date = (race_date // 10000 - 1) * 10000 + 101
-    #begin_date = end_date - 50000
+    # end_date = (race_date // 10000 - 1) * 10000 + 101
+    # begin_date = end_date - 50000
 
     if race_date is None:
         race_date_d = dt.datetime.today().date()

@@ -4,15 +4,19 @@
 
 import os
 import sys
+
 sys.path.append(os.pardir)
 import datetime as dt
-import pandas as pd
 import re
-from typing import Dict, List, Union
-from common.utils import PAYOFF_KIND_TO_ID, judge_region
-from common.db_api import DBManager
-from common.scrape import scrape_horse_peds, scrape_horse_results, scrape_race_info
 from logging import Logger
+from typing import Dict, List, Union
+
+import pandas as pd
+
+from common.db_api import DBManager
+from common.scrape import (scrape_horse_peds, scrape_horse_results,
+                           scrape_race_info)
+from common.utils import PAYOFF_KIND_TO_ID, judge_region
 
 
 class DBRegistar:
@@ -66,11 +70,11 @@ class DBRegistar:
         return set(error_horse_list)
 
     def regist_horse(
-            self,
-            horse_dict: Dict[str, str],
-            with_horse_result: bool = False,
-            with_jocky_id: bool = True
-        ) -> List[str]:
+        self,
+        horse_dict: Dict[str, str],
+        with_horse_result: bool = False,
+        with_jocky_id: bool = True
+    ) -> List[str]:
         """馬の情報を登録
 
         Parameters
@@ -104,7 +108,8 @@ class DBRegistar:
                     peds = scrape_horse_peds(horse_id)
                     peds_data_list += [(horse_id, horse_name, peds[0], peds[1], peds[2], peds[3], peds[4], peds[5],)]
                 except IndexError:
-                    self._logger.exception("'IndexError' has been raised while scraping peds of horse_id:{}".format(horse_id))
+                    self._logger.exception(
+                        "'IndexError' has been raised while scraping peds of horse_id:{}".format(horse_id))
                     peds_data_list += [(horse_id, horse_name, None, None, None, None, None, None)]
                     error_horse_list.append(horse_id)
             else:
@@ -114,7 +119,8 @@ class DBRegistar:
                 try:
                     results_data_list += self._create_horse_results_data(horse_id, with_jocky_id)
                 except Exception as e:
-                    self._logger.exception("'{}' has been raised with horse_id:{}".format(e.__class__.__name__, horse_id))
+                    self._logger.exception("'{}' has been raised with horse_id:{}".format(
+                        e.__class__.__name__, horse_id))
                     error_horse_list.append(horse_id)
 
         # 外部キー例外が出るので、必ず血統->過去結果の順に登録
@@ -124,10 +130,10 @@ class DBRegistar:
         return error_horse_list
 
     def regist_horse_results(
-            self,
-            horse_id_list: List[str],
-            with_jocky_id: bool = True
-        ):
+        self,
+        horse_id_list: List[str],
+        with_jocky_id: bool = True
+    ):
 
         error_horse_list = []
         data_list = []
@@ -144,10 +150,10 @@ class DBRegistar:
         return error_horse_list
 
     def _create_horse_results_data(
-            self,
-            horse_id: str,
-            with_jockey_id: bool = True
-        ):
+        self,
+        horse_id: str,
+        with_jockey_id: bool = True
+    ):
 
         data_list = []
         result_df = scrape_horse_results(horse_id, with_jockey_id)

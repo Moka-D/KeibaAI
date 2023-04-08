@@ -4,15 +4,17 @@
 
 import os
 import sys
+
 sys.path.append(os.pardir)
+import itertools
 from typing import Any, Tuple, Union
+
 import numpy as np
 import pandas as pd
-import itertools
-from scipy.special import perm, comb
+from scipy.special import comb, perm
+
 from common.payoff import Payoff
 from common.utils import InvalidArgument
-
 
 TICKET_UNIT_PRICE: int = 100
 
@@ -22,11 +24,11 @@ class ModelEvalator:
         self.model = model
 
     def pred_table(
-            self,
-            X: pd.DataFrame,
-            target: str,
-            with_sort: bool = True
-        ) -> Union[pd.DataFrame, pd.Series]:
+        self,
+        X: pd.DataFrame,
+        target: str,
+        with_sort: bool = True
+    ) -> Union[pd.DataFrame, pd.Series]:
 
         pred_table = X.copy()[['horse_no']]
         if target in ['binary', 'regression']:
@@ -50,16 +52,16 @@ class ModelEvalator:
 
 
 def get_wins_single(
-        pred_table: pd.DataFrame,
-        payoff_table: pd.DataFrame
-    ) -> Tuple[float, float, int]:
+    pred_table: pd.DataFrame,
+    payoff_table: pd.DataFrame
+) -> Tuple[float, float, int]:
 
     win_money_list = []
     n_hits = 0
 
     for race_id in pred_table['race_id'].unique():
-        horse_list = pred_table[pred_table['race_id']==race_id]['horse_no'].tolist()
-        result = payoff_table[payoff_table['race_id']==race_id]
+        horse_list = pred_table[pred_table['race_id'] == race_id]['horse_no'].tolist()
+        result = payoff_table[payoff_table['race_id'] == race_id]
         win_money = 0
         for horse_no in horse_list:
             for row in result.itertuples():
@@ -73,17 +75,17 @@ def get_wins_single(
 
 
 def get_wins_combination(
-        pred_table: pd.DataFrame,
-        payoff_table: pd.DataFrame,
-        required_horse_num: int
-    ) -> Tuple[float, float, int]:
+    pred_table: pd.DataFrame,
+    payoff_table: pd.DataFrame,
+    required_horse_num: int
+) -> Tuple[float, float, int]:
 
     win_money_list = []
     n_hits = 0
 
     for race_id in pred_table['race_id'].unique():
-        horse_list = pred_table[pred_table['race_id']==race_id]['horse_no'].tolist()
-        result = payoff_table[payoff_table['race_id']==race_id]
+        horse_list = pred_table[pred_table['race_id'] == race_id]['horse_no'].tolist()
+        result = payoff_table[payoff_table['race_id'] == race_id]
         win_money = 0
         for horse_comb in itertools.combinations(horse_list, required_horse_num):
             for row in result.itertuples():
@@ -97,17 +99,17 @@ def get_wins_combination(
 
 
 def get_wins_permutation(
-        pred_table: pd.DataFrame,
-        payoff_table: pd.DataFrame,
-        required_horse_num: int
-    ) -> Tuple[float, float, int]:
+    pred_table: pd.DataFrame,
+    payoff_table: pd.DataFrame,
+    required_horse_num: int
+) -> Tuple[float, float, int]:
 
     win_money_list = []
     n_hits = 0
 
     for race_id in pred_table['race_id'].unique():
-        horse_list = pred_table[pred_table['race_id']==race_id]['horse_no'].tolist()
-        result = payoff_table[payoff_table['race_id']==race_id]
+        horse_list = pred_table[pred_table['race_id'] == race_id]['horse_no'].tolist()
+        result = payoff_table[payoff_table['race_id'] == race_id]
         win_money = 0
         for horse_comb in itertools.permutations(horse_list, required_horse_num):
             for row in result.itertuples():
@@ -121,10 +123,10 @@ def get_wins_permutation(
 
 
 def disp_top_n_box(
-        df: pd.DataFrame,
-        pt: Payoff,
-        max_n: int = 3
-    ) -> None:
+    df: pd.DataFrame,
+    pt: Payoff,
+    max_n: int = 3
+) -> None:
 
     for n in range(1, max_n + 1):
         print('---- Top-{}'.format(n))
@@ -145,11 +147,11 @@ def disp_top_n_box(
 
 
 def _disp_result(
-        type: str,
-        pred_table: pd.DataFrame,
-        pt: Payoff,
-        n: int
-    ) -> None:
+    type: str,
+    pred_table: pd.DataFrame,
+    pt: Payoff,
+    n: int
+) -> None:
 
     if type == 'win':   # 単勝
         n_bets_per_race = n

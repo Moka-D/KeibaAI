@@ -1,17 +1,17 @@
 #!/usr/bin/python
 
-import os
-import json
-from logging import Logger, getLogger, config
 import datetime as dt
+import json
+import os
+from logging import Logger, config, getLogger
 
 
 def get_module_logger(
-        module: str,
-        log_dir: str,
-        config_path: str = './config/log_config.json',
-        verbose: bool = False
-    ) -> Logger:
+    module: str,
+    log_dir: str,
+    config_path: str = './config/log_config.json',
+    verbose: bool = False
+) -> Logger:
     """ログハンドラ取得API
 
     Parameters

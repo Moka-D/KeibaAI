@@ -1,13 +1,13 @@
 #!/usr/bin/python
 
-import os
 import argparse
-from typing import List
+import os
 from logging import Logger
+from typing import List
+
 from common.db_register import DBRegistar
 from common.log_api import get_module_logger
 from config.db_config import db_config
-
 
 ERROR_HORSE_LIST_PATH = './error_horses.txt'
 

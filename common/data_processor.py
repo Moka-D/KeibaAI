@@ -4,30 +4,33 @@
 
 import os
 import sys
+
 sys.path.append(os.pardir)
 import datetime as dt
-from logging import Logger
 import re
-from typing import List, Set, Tuple, Union, Dict, Any
-import pandas as pd
-from common.utils import (
-    InvalidArgument,
-    get_environment
-)
+from logging import Logger
+from typing import Any, Dict, List, Set, Tuple, Union
+
 import numpy as np
+import pandas as pd
+
+from common.utils import InvalidArgument, get_environment
+
 if get_environment() == 'Jupyter':
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
+
+from sklearn.preprocessing import StandardScaler
+
 from common.db_api import DBManager
 from common.scrape import scrape_race_card
-from sklearn.preprocessing import StandardScaler
 
 
 def _convert_time(x):
     try:
         return float(x.split(':')[0]) * 60.0 + float(x.split(':')[1])
-    except:
+    except Exception:
         return np.nan
 
 
@@ -70,7 +73,12 @@ class HorseResults:
         self.preprocesing()
 
     @classmethod
-    def read_db(cls, db_path: str, horse_id_list: Union[List[str], Set[str]] = None, logger: Logger = None) -> 'Results':
+    def read_db(
+        cls,
+        db_path: str,
+        horse_id_list: Union[List[str], Set[str]] = None,
+        logger: Logger = None
+    ) -> 'Results':
         dbm = DBManager(db_path, logger)
         if horse_id_list is None:
             df = dbm.select_horse_results()
@@ -88,7 +96,7 @@ class HorseResults:
 
         # 1着の着差を0にする
         df['time_diff'] = df['time_diff'].map(lambda x: 0 if x < 0 else x)
-        df[df['arriving_order']==1]['time_diff'].fillna(0, inplace=True)
+        df[df['arriving_order'] == 1]['time_diff'].fillna(0, inplace=True)
 
         def corner(x, n):
             if type(x) != str:
@@ -126,7 +134,9 @@ class HorseResults:
         pre_target_cols = ['distance', 'time_diff', 'last_three_furlong']
 
         # Nanの平均埋め
-        f = lambda x: x.fillna(x.mean())
+        def f(x):
+            return x.fillna(x.mean())
+
         transformed = target_df.copy()
         transformed[pre_target_cols] = target_df.groupby(level=0)[pre_target_cols].transform(f)
 
@@ -151,8 +161,8 @@ class HorseResults:
         n_races: int = 1
     ) -> pd.DataFrame:
 
-        df = results[results['race_date']==date].copy()
-        one_month_ago = np.datetime64(pd.Timestamp(date) - pd.DateOffset(months=1))
+        df = results[results['race_date'] == date].copy()
+        # one_month_ago = np.datetime64(pd.Timestamp(date) - pd.DateOffset(months=1))
 
         # 馬の過去複勝率を追加
         horse_id_list = df['horse_id'].unique()
@@ -160,7 +170,7 @@ class HorseResults:
         horse_df = horse_df[horse_df['race_date'] < date].sort_values('race_date', ascending=False)
         horse_place_ratio = {}
         for horse_id in horse_id_list:
-            horse_result = horse_df[horse_df.index==horse_id]['arriving_order']
+            horse_result = horse_df[horse_df.index == horse_id]['arriving_order']
             if len(horse_result) > 0:
                 horse_place_ratio[horse_id] = len(horse_result[horse_result < 4]) / len(horse_result)
             else:
@@ -172,7 +182,7 @@ class HorseResults:
         jockey_df = base_df.query('race_date >= @one_month_ago and race_date < @date')
         jockey_place_ratio = {}
         for jockey_id in jockey_id_list:
-            jockey_result = jockey_df[jockey_df['jockey_id']==jockey_id]['arriving_order']
+            jockey_result = jockey_df[jockey_df['jockey_id'] == jockey_id]['arriving_order']
             if len(jockey_result) > 0:
                 jockey_place_ratio[jockey_id] = len(jockey_result[jockey_result < 4]) / len(jockey_result)
             else:
@@ -226,10 +236,10 @@ class Results(DataProcessor):
 
     @classmethod
     def read_db(
-            cls,
-            db_path: str,
-            logger: Logger = None
-        ) -> 'Results':
+        cls,
+        db_path: str,
+        logger: Logger = None
+    ) -> 'Results':
 
         dbm = DBManager(db_path, logger)
         df = dbm.select_resutls()
@@ -257,14 +267,14 @@ class Results(DataProcessor):
         df['arriving_order'] = pd.to_numeric(df['arriving_order'], errors='coerce')
         df.dropna(subset=['arriving_order'], inplace=True)
         df['arriving_order'] = df['arriving_order'].astype(int)
-        #df['rank'] = df['arriving_order'].map(lambda x: 1 if x < 4 else 0)
+        # df['rank'] = df['arriving_order'].map(lambda x: 1 if x < 4 else 0)
 
         # 性齢
         df['sex'] = df['sex_age'].map(lambda x: str(x)[0])
         df['age'] = df['sex_age'].map(lambda x: re.findall(r'\d+', x)[0]).astype(int)
 
         # 馬体重
-        df = df[df['horse_weight']!='計不']
+        df = df[df['horse_weight'] != '計不']
         df['weight'] = df['horse_weight'].str.split('(', expand=True)[0].astype(int)
         df['weight_change'] = df['horse_weight'].str.split('(', expand=True)[1].str[:-1].astype(int)
 
@@ -298,7 +308,7 @@ class Results(DataProcessor):
         end_date = pd.to_datetime(end_date, format='%Y%m%d')
 
         df = self.data_p.copy()
-        df = df.query("race_date >= @begin_date and race_date <= @end_date and place_id == @place_id and race_type == @race_type and distance == @distance"
+        df = df.query("race_date >= @begin_date and race_date <= @end_date and place_id == @place_id and race_type == @race_type and distance == @distance"  # noqa
                       + option)
         self.data_t = df[['horse_no', 'frame_no', 'arriving_order', 'horse_id',
                           'impost', 'jockey_id', 'goal_time', 'popularity',
@@ -320,7 +330,7 @@ class Results(DataProcessor):
                          'goal_time', 'popularity', 'prise']
 
         df = self.data_m.copy()
-        df['rank']  = df['arriving_order'].map(lambda x: 1 if x < 4 else 0)
+        df['rank'] = df['arriving_order'].map(lambda x: 1 if x < 4 else 0)
         return df.drop(drop_cols, axis=1)
 
     def target_multiclass(self) -> pd.DataFrame:
@@ -392,7 +402,7 @@ class RaceCard(DataProcessor):
         df.set_index('race_id', inplace=True)
 
         # 列名変更
-        df.rename(columns={'枠':'frame_no', '馬番':'horse_no', '斤量':'impost'}, inplace=True)
+        df.rename(columns={'枠': 'frame_no', '馬番': 'horse_no', '斤量': 'impost'}, inplace=True)
 
         self.data_p = df[['horse_no', 'frame_no', 'horse_id', 'impost',
                           'jockey_id', 'trainer_id', 'race_date', 'place_id',

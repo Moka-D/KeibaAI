@@ -2,9 +2,10 @@
 
 import sys
 import time
-from common.utils import send_line_notify
+
 from common.db_api import DBManager
 from common.scrape import scrape_race_info
+from common.utils import send_line_notify
 from config.db_config import db_config
 
 
@@ -18,7 +19,8 @@ def main():
 
     for race_id in race_id_list:
         race_info, _, _ = scrape_race_info(str(race_id))
-        data = (race_info['grade'], race_info['age_limit'], race_info['classification'], race_info['sex_limit'], race_id,)
+        data = (race_info['grade'], race_info['age_limit'],
+                race_info['classification'], race_info['sex_limit'], race_id,)
         if not dbm.insert_data(query, data):
             print("Error occurred at race_id:'{}'".format(race_id), file=sys.stderr)
 

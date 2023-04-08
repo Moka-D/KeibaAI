@@ -2,5 +2,38 @@
     "files.eol": "\n",
     "terminal.integrated.env.windows": {
         "PATH": "${workspaceRoot}\\.venv\\Scripts;${env:PATH}"
-    }
+    },
+    "python.linting.enabled": true,
+    "python.linting.lintOnSave": true,
+    "[python]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        },
+        "editor.formatOnSave": true
+    },
+    "python.formatting.provider": "autopep8",
+    "python.formatting.autopep8Args": [
+        "--max-line-length=120",
+        "--ignore=E402"
+    ],
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.linting.flake8Args": [
+        "--ignore=W503,E402",
+        "--max-line-length=120",
+        "--exclude=tests,*.pyi"
+    ],
+    "python.analysis.typeCheckingMode": "off",
+    "python.linting.mypyEnabled": false,
+    "python.linting.mypyCategorySeverity.error": "Information",
+    "python.linting.mypyArgs": [
+        "--follow-imports=skip",
+        "--ignore-missing-imports",
+        "--warn-return-any",
+        "--no-implicit-optional",
+        "--disallow-untyped-calls",
+        "--disallow-untyped-defs",
+        "--python-version=3.7",
+    ],
+    "isort.check": true
 }

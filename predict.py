@@ -4,7 +4,6 @@ import argparse
 import os
 import re
 
-from parso import parse
 from common.utils import DATE_PATTERN, InvalidArgument
 from model.knn import predict_by_knn
 from model.lgb import predict_by_lgb

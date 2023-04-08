@@ -2,21 +2,21 @@
 """ユーティリティメソッドモジュール
 """
 
-import os
 import datetime as dt
-from typing import List, Tuple, Union
-import pandas as pd
+import os
 import re
-import requests
 from enum import Enum
+from typing import List, Tuple, Union
 
+import pandas as pd
+import requests
 
 MAX_PLACE_NUM = 10
 MAX_HOLD_NUM = 6
 MAX_DAY_NUM = 12
 MAX_RACE_NUM = 12
 
-DATE_PATTERN = re.compile('\d{4}/\d{1,2}/\d{1,2}')
+DATE_PATTERN = re.compile(r'\d{4}/\d{1,2}/\d{1,2}')
 
 PAYOFF_KIND_TO_ID = {
     '単勝': 1,
@@ -70,32 +70,32 @@ class Racecourse(Enum):
     """競馬場定義クラス
     """
 
-    SAPPORO   = (1, '札幌', '右')
-    HAKODATE  = (2, '函館', '右')
+    SAPPORO = (1, '札幌', '右')
+    HAKODATE = (2, '函館', '右')
     FUKUSHIMA = (3, '福島', '右')
-    NIIGATA   = (4, '新潟', '左')
-    TOKYO     = (5, '東京', '左')
-    NAKAYAMA  = (6, '中山', '右')
-    CHUKYO    = (7, '中京', '左')
-    KYOTO     = (8, '京都', '右')
-    HANSHIN   = (9, '阪神', '右')
-    KOKURA    = (10, '小倉', '右')
+    NIIGATA = (4, '新潟', '左')
+    TOKYO = (5, '東京', '左')
+    NAKAYAMA = (6, '中山', '右')
+    CHUKYO = (7, '中京', '左')
+    KYOTO = (8, '京都', '右')
+    HANSHIN = (9, '阪神', '右')
+    KOKURA = (10, '小倉', '右')
 
-    MONBETSU  = (30, '門別', '右')
-    MORIOKA   = (35, '盛岡', '左')
-    MIZUSAWA  = (36, '水沢', '右')
-    URAWA     = (42, '浦和', '左')
+    MONBETSU = (30, '門別', '右')
+    MORIOKA = (35, '盛岡', '左')
+    MIZUSAWA = (36, '水沢', '右')
+    URAWA = (42, '浦和', '左')
     FUNABASHI = (43, '船橋', '左')
-    OI        = (44, '大井', '右')
-    KAWASAKI  = (45, '川崎', '左')
-    KANAZAWA  = (46, '金沢', '右')
+    OI = (44, '大井', '右')
+    KAWASAKI = (45, '川崎', '左')
+    KANAZAWA = (46, '金沢', '右')
     KASAMATSU = (47, '笠松', '右')
-    NAGOYA    = (48, '名古屋', '右')
-    SONODA    = (50, '園田', '右')
-    HIMEJI    = (51, '姫路', '右')
-    FUKUYAMA  = (53, '福山', '右')
-    KOCHI     = (54, '高知', '右')
-    SAGA      = (55, '佐賀', '右')
+    NAGOYA = (48, '名古屋', '右')
+    SONODA = (50, '園田', '右')
+    HIMEJI = (51, '姫路', '右')
+    FUKUYAMA = (53, '福山', '右')
+    KOCHI = (54, '高知', '右')
+    SAGA = (55, '佐賀', '右')
 
     OBIHIRO = (65, '帯広(ばんえい)', '他')
 

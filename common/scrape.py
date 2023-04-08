@@ -5,31 +5,27 @@ Webからスクレイピングしてデータを取得するメソッド郡
 
 """
 
-import sys
 import os
+import sys
+
 sys.path.append(os.pardir)
-from typing import Dict, Tuple, Union, List
 import datetime as dt
+import re
+import time
+from typing import Dict, List, Tuple, Union
+
 import numpy as np
 import pandas as pd
 import requests
-import re
 from bs4 import BeautifulSoup
-import time
 from selenium import webdriver
-from selenium.webdriver.support.ui import Select, WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from common.utils import (
-    DATE_PATTERN,
-    GRADE_KIND_TO_ID,
-    GROUND_STATE_LIST,
-    WEATHER_LIST,
-    AGE_LIMIT_TO_ID,
-    CLASSIFICATION_TO_ID,
-    SEX_LIMIT_TO_ID,
-    InvalidArgument
-)
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select, WebDriverWait
+
+from common.utils import (AGE_LIMIT_TO_ID, CLASSIFICATION_TO_ID, DATE_PATTERN,
+                          GRADE_KIND_TO_ID, GROUND_STATE_LIST, SEX_LIMIT_TO_ID,
+                          WEATHER_LIST, InvalidArgument)
 
 
 def scrape_race_info(race_id: str) -> Tuple[Dict[str, Union[str, int]], pd.DataFrame, pd.DataFrame]:
@@ -373,11 +369,11 @@ def get_driver():
 
 
 def scrape_period_race_id_list(
-        year: int,
-        start_month: int = 1,
-        end_month: int = 12,
-        only_jra: bool = True
-    ) -> List[str]:
+    year: int,
+    start_month: int = 1,
+    end_month: int = 12,
+    only_jra: bool = True
+) -> List[str]:
     """指定期間に開催されたレースIDの一覧を取得
 
     Parameters
@@ -456,10 +452,12 @@ def scrape_period_race_id_list(
         while True:
             time.sleep(5)
             wait.until(EC.presence_of_all_elements_located)
-            all_rows = driver.find_element(by=By.CLASS_NAME, value='race_table_01').find_elements(by=By.TAG_NAME, value='tr')
+            all_rows = driver.find_element(
+                by=By.CLASS_NAME, value='race_table_01').find_elements(by=By.TAG_NAME, value='tr')
 
             for row in range(1, len(all_rows)):
-                race_href = all_rows[row].find_elements(by=By.TAG_NAME, value='td')[4].find_element(by=By.TAG_NAME, value='a').get_attribute('href')
+                race_href = all_rows[row].find_elements(by=By.TAG_NAME, value='td')[4].find_element(
+                    by=By.TAG_NAME, value='a').get_attribute('href')
                 race_id = race_href.removeprefix('https://db.netkeiba.com/race/').removesuffix('/')
                 race_id_list.append(race_id)
 
@@ -514,9 +512,9 @@ def scrape_race_card_id_list(
             if a_tag:
                 href = a_tag.get('href')
                 if is_past:
-                    match = re.findall("\/race\/result.html\?race_id=(.*)&rf=race_list", href)
+                    match = re.findall(r"/race/result.html?race_id=(.*)&rf=race_list", href)
                 else:
-                    match = re.findall("\/race\/shutuba.html\?race_id=(.*)&rf=race_list", href)
+                    match = re.findall(r"/race/shutuba.html?race_id=(.*)&rf=race_list", href)
                 if len(match) > 0:
                     race_id = match[0]
                     race_id_list.append(race_id)

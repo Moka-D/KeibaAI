@@ -1,14 +1,15 @@
 #!/usr/bin/python
 
+import argparse
 import datetime as dt
-import time
 import re
+import time
+
 from common.db_register import DBRegistar
 from common.log_api import get_module_logger
-from config.db_config import db_config
+from common.scrape import DATE_PATTERN, scrape_race_card_id_list
 from common.utils import InvalidArgument, send_line_notify
-from common.scrape import scrape_period_race_id_list, DATE_PATTERN, scrape_race_card_id_list
-import argparse
+from config.db_config import db_config
 
 
 def main(race_date: str, is_local: bool = False, with_horse_results: bool = False):

@@ -1,13 +1,14 @@
 #!/usr/bin/python
 
+import argparse
 import datetime as dt
 import time
+
 from common.db_register import DBRegistar
 from common.log_api import get_module_logger
-from config.db_config import db_config
-from common.utils import InvalidArgument, send_line_notify
 from common.scrape import scrape_period_race_id_list
-import argparse
+from common.utils import InvalidArgument, send_line_notify
+from config.db_config import db_config
 
 
 def main(year: int, month: int, is_local: bool = False, with_horse_results: bool = False):
@@ -53,7 +54,8 @@ def main(year: int, month: int, is_local: bool = False, with_horse_results: bool
         return
 
     proc_time = time.time() - start_time
-    msg = "Monthly race data of {}/{} has been inserted successfully. Total time: {:.1f}[sec]".format(year, month, proc_time)
+    msg = "Monthly race data of {}/{} has been inserted successfully. Total time: {:.1f}[sec]".format(
+        year, month, proc_time)
     send_line_notify("[INFO] " + msg)
     logger.info(msg)
 

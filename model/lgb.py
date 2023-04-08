@@ -2,16 +2,18 @@
 
 import os
 import sys
-sys.path.append(os.pardir)
-import pandas as pd
-import re
-import datetime as dt
-from dateutil.relativedelta import relativedelta
-from common.data_processor import RaceCard, Results, HorseResults
-from config.db_config import db_config
-from common.utils import DATE_PATTERN, InvalidArgument, Racecourse
-import lightgbm as lgb
 
+sys.path.append(os.pardir)
+import datetime as dt
+import re
+
+import lightgbm as lgb
+import pandas as pd
+from dateutil.relativedelta import relativedelta
+
+from common.data_processor import HorseResults, RaceCard, Results
+from common.utils import DATE_PATTERN, InvalidArgument, Racecourse
+from config.db_config import db_config
 
 params = {
     'binary': {
@@ -71,7 +73,7 @@ def predict_by_lgb(
                        race_type=race_type,
                        distance=distance,
                        option=" and age_limit <= 2")
-                       #option=" and classification != 6")
+    # option=" and classification != 6")
 
     print("Race num of training data from {} to {} : {}".format(begin_date_d.strftime('%Y/%m/%d'),
                                                                 end_date_d.strftime('%Y/%m/%d'),
